@@ -3,21 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Belmond Affordability Upload</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Upload Affordability Statements</title>
+    <script src="script.js" defer></script>
 </head>
 <body>
-    <div class="container">
-        <img src="logo.png" alt="Belmond Logo" width="150">
-        <h1>Upload Affordability Statements</h1>
-        <label for="folderPath">Select Folder:</label>
-        <input type="text" id="folderPath" placeholder="Enter full folder path">
-        
-        <button onclick="uploadFiles()">Upload Files</button>
-        
-        <div id="result"></div>
-    </div>
+    <h1>Upload Affordability Statements</h1>
+    
+    <label>Select Folder:</label>
+    <input type="text" id="folderPath" readonly>
+    <button onclick="selectFolder()">Browse</button>
+    <button onclick="uploadFiles()">Upload Files</button>
 
-    <script src="script.js"></script>
+    <div id="result"></div>
 </body>
 </html>
