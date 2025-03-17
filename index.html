@@ -6,14 +6,17 @@
     <title>Upload Affordability Statements</title>
     <script src="script.js" defer></script>
 </head>
+
+
 <body>
     <h1>Upload Affordability Statements</h1>
-    
+    <button id="loginBtn">Login with Microsoft</button>
+    <button id="listFilesBtn">List SharePoint Files</button>
+    <div id="filesContainer"></div>
     <label>Select Folder:</label>
     <input type="text" id="folderPath" readonly>
     <button onclick="selectFolder()">Browse</button>
     <button onclick="uploadFiles()">Upload Files</button>
-
     <div id="result"></div>
 </body>
 </html>

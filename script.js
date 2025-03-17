@@ -7,6 +7,38 @@ async function selectFolder() {
     }
 }
 
+document.getElementById("loginBtn").addEventListener("click", () => {
+    // Replace with your backend login URL
+    window.location.href = "https://web-production-15e92.up.railway.app/login";
+});
+
+document.getElementById("listFilesBtn").addEventListener("click", async () => {
+    try {
+        const response = await fetch("https://web-production-15e92.up.railway.app/list-files");
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(JSON.stringify(err));
+        }
+        const data = await response.json();
+        renderFileList(data.value);
+    } catch (error) {
+        console.error("Error listing files:", error);
+        alert("Failed to list files. Check console.");
+    }
+});
+
+function renderFileList(files) {
+    const container = document.getElementById("filesContainer");
+    container.innerHTML = "";
+    files.forEach(file => {
+        const div = document.createElement("div");
+        div.textContent = file.name;
+        container.appendChild(div);
+    });
+}
+
+
+
 async function uploadFiles() {
     const folderName = document.getElementById("folderPath").value;
 
