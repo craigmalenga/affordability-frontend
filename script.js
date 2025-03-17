@@ -7,33 +7,25 @@ async function selectFolder() {
     }
 }
 
-// === Login Button ===
-document.getElementById("loginBtn").addEventListener("click", () => {
-    // Replace with your backend login URL
-    window.location.href = "https://web-production-15e92.up.railway.app/login";
-});
-
-// === List Files Button ===
+// Single button: "List SharePoint Files"
 document.getElementById("listFilesBtn").addEventListener("click", handleListFiles);
 
 async function handleListFiles() {
     try {
         const response = await fetch("https://web-production-15e92.up.railway.app/list-files");
-        
-        // If user is not logged in, the server will return 401 Unauthorized
+
+        // If the user is not logged in, the backend will return a 401
         if (response.status === 401) {
-            // Redirect to login
+            // Redirect to login so the user can authenticate
             window.location.href = "https://web-production-15e92.up.railway.app/login";
             return;
         }
 
-        // If there's another error (403, 500, etc.), handle it
         if (!response.ok) {
             const err = await response.json();
             throw new Error(JSON.stringify(err));
         }
 
-        // Otherwise, parse and display the file list
         const data = await response.json();
         renderFileList(data.value);
     } catch (error) {
@@ -52,22 +44,18 @@ function renderFileList(files) {
     });
 }
 
-// === Upload Files ===
 async function uploadFiles() {
     const folderName = document.getElementById("folderPath").value;
-
     if (!folderName) {
         alert("Please select a folder.");
         return;
     }
-
     try {
-        const response = await fetch("https://your-backend-url/process-files", {
+        const response = await fetch("https://web-production-15e92.up.railway.app/upload-file", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ folder_path: folderName }) // Send folder name only
+            body: JSON.stringify({ folder_path: folderName }) // Adjust payload if necessary
         });
-
         const result = await response.json();
         document.getElementById("result").innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
     } catch (error) {
