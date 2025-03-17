@@ -7,16 +7,14 @@ async function selectFolder() {
     }
 }
 
-// Single button: "List SharePoint Files"
 document.getElementById("listFilesBtn").addEventListener("click", handleListFiles);
 
 async function handleListFiles() {
     try {
         const response = await fetch("https://web-production-15e92.up.railway.app/list-files");
-
-        // If the user is not logged in, the backend will return a 401
+        
+        // If user is not logged in, your backend returns 401
         if (response.status === 401) {
-            // Redirect to login so the user can authenticate
             window.location.href = "https://web-production-15e92.up.railway.app/login";
             return;
         }
@@ -44,18 +42,24 @@ function renderFileList(files) {
     });
 }
 
+// OPTIONAL: If you're actually uploading a file, you'll need an <input type="file"> 
+// and use FormData. But if you're just sending a folder name, keep it as is:
 async function uploadFiles() {
     const folderName = document.getElementById("folderPath").value;
+
     if (!folderName) {
         alert("Please select a folder.");
         return;
     }
+
     try {
+        // Replace "https://your-backend-url/process-files" with your real endpoint:
         const response = await fetch("https://web-production-15e92.up.railway.app/upload-file", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ folder_path: folderName }) // Adjust payload if necessary
+            body: JSON.stringify({ folder_path: folderName })
         });
+
         const result = await response.json();
         document.getElementById("result").innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
     } catch (error) {
