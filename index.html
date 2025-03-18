@@ -2,18 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Belmond & Co - Main Menu</title>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Page-specific styles for the background image -->
+  <style>
+    body {
+      margin: 0; 
+      padding: 0;
+      min-height: 100vh;
+
+      /* Use your GitHub raw URL for the background */
+      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") 
+                  no-repeat center center fixed;
+      background-size: cover; /* Ensures the image always covers the screen */
+    }
+  </style>
 </head>
-<body class="bg-gray-100 p-6">
-  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center">
-    <!-- Logo (adjust h-16 to h-12 or h-10 if you want it smaller) -->
+<body>
+  <!-- Centered container -->
+  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
+    <!-- Logo (adjust h-16 to h-12 or h-10 for smaller) -->
     <img
       src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true"
       alt="Company Logo"
-      class="h-16 mx-auto mb-4"
+      class="h-16 w-auto mx-auto mb-4"
     />
 
     <h1 class="text-2xl font-bold mb-8">Belmond & Co Claims Management</h1>
@@ -36,3 +52,4 @@
   </div>
 </body>
 </html>
+
