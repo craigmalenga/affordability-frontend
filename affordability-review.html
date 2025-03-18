@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Affordability Review</title>
+  
+  <!-- Tailwind for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Background styling -->
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true")
+                  no-repeat center center fixed;
+      background-size: cover;
+    }
+  </style>
+  
+  <script>
+    // Global variable to store the dynamic months (returned from FLG)
+    let dynamicMonths = [];
+
+    // Sample statements data (for demonstration)
+    let statements = [
+      { bank: "Barclays1", file: "C:/path/to/Transaction-person1.pdf", entered: false, data: {} },
+      { bank: "Barclays2", file: "C:/path/to/Transaction-person1.pdf", entered: false, data: {} },
+      { bank: "Monzo", file: "C:/path/to/Monzo_bank_statement.pdf", entered: false, data: {} }
+    ];
+
+    function formatNumber(num) {
+      return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Fetch FLG lead data from the back-end
+    function fetchLeadData() {
+      const leadId = document.getElementById("leadId").value.trim();
+      if (!leadId) {
+        alert("Please enter a valid Lead ID.");
+        return;
+      }
+      // Adjust the URL if needed (e.g. include domain/port if not same-origin)
+      fetch(`/api/flg_data/${leadId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          // Populate fields from FLG data
+          document.getElementById("fullName").value = data.fullName || "";
+          document.getElementById("bankNames").value = data.bankNames || "";
+          document.getElementById("periodCovered").value = data.periodCovered || "";
+          document.getElementById("monthlyRepayment").value = data.monthlyRepayment || "";
+
+          // Save the 3 months for use in table headings
+          if (Array.isArray(data.monthsForTable) && data.monthsForTable.length === 3) {
+            dynamicMonths = data.monthsForTable;
+          } else {
+            dynamicMonths = ["N/A", "N/A", "N/A"];
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching FLG data:", err);
+          alert("Failed to fetch data from FLG. Check console for details.");
+        });
+    }
+
+    // Create the statement links (opens PDFs in a new tab)
+    function createStatementLinks() {
+      const pdfContainer = document.getElementById("bankStatements");
+      pdfContainer.innerHTML = "";
+
+      statements.forEach((statement, index) => {
+        const container = document.createElement("div");
+        container.classList.add("mb-4");
+        
+        const viewLink = document.createElement("a");
+        viewLink.href = statement.file;
+        viewLink.innerText = `View ${statement.bank} Statement`;
+        viewLink.classList.add("text-blue-500", "underline", "block", "cursor-pointer");
+        viewLink.onclick = (event) => {
+          event.preventDefault();
+          window.open(statement.file, "_blank");
+        };
+
+        const enterDataBtn = document.createElement("button");
+        enterDataBtn.innerText = "Enter Data";
+        enterDataBtn.classList.add("bg-blue-600", "text-white", "px-4", "py-2", "rounded-md", "ml-2");
+        enterDataBtn.onclick = () => loadStatementForm(index);
+
+        container.appendChild(viewLink);
+        container.appendChild(enterDataBtn);
+        pdfContainer.appendChild(container);
+      });
+    }
+
+    // Load the statement form for a selected statement
+    function loadStatementForm(statementIndex) {
+      const statement = statements[statementIndex];
+      const formContainer = document.getElementById("statementForm");
+      formContainer.innerHTML = `<h3 class='text-lg font-bold mt-6'>${statement.bank} Statement Data</h3>`;
+
+      // Use the dynamic months if available; otherwise fallback labels.
+      const months = dynamicMonths.length === 3 ? dynamicMonths : ["Month1", "Month2", "Month3"];
+
+      const categories = [
+        "Income", 
+        "Rent/Mortgage", 
+        "Council Tax", 
+        "Utilities", 
+        "Credit Commitments", 
+        "Food Expenditure", 
+        "Gambling Expenditure"
+      ];
+
+      let table = `<table class='w-full border-collapse border border-gray-300 mt-4'><tr><th class='border p-2'>Category</th>`;
+      months.forEach(month => { table += `<th class='border p-2'>${month}</th>`; });
+      table += "</tr>";
+
+      categories.forEach((category, rowIndex) => {
+        table += `<tr><td class='border p-2 font-semibold'>${category}</td>`;
+        months.forEach((_, monthIndex) => {
+          const value = statement.data[`${rowIndex}_${monthIndex}`] || "";
+          table += `
+            <td class='border p-2'>
+              <input type='number' 
+                     id='${statementIndex}_${rowIndex}_${monthIndex}' 
+                     class='border p-2 w-full rounded-md' 
+                     value="${value}" 
+                     oninput="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})">
+            </td>`;
+        });
+        table += "</tr>";
+      });
+      table += "</table>";
+
+      table += `
+        <button onclick='summarizeData(${statementIndex})' 
+                class='mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700'>
+          Upload data for this bank to summary before processing
+        </button>`;
+
+      formContainer.innerHTML += table;
+    }
+
+    function saveData(statementIndex, rowIndex, monthIndex) {
+      const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
+      const inputValue = document.getElementById(inputId).value;
+      statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = inputValue;
+      statements[statementIndex].entered = true;
+      checkProcessButton();
+    }
+
+    function checkProcessButton() {
+      const allEntered = statements.every(statement => statement.entered); 
+      const processBtn = document.getElementById("processDataBtn");
+      processBtn.disabled = !allEntered;
+      if (allEntered) {
+        processBtn.style.backgroundColor = "green";
+      }
+    }
+
+    function summarizeData(statementIndex) {
+      const categories = [
+        "Income", 
+        "Rent/Mortgage", 
+        "Council Tax", 
+        "Utilities", 
+        "Credit Commitments", 
+        "Food Expenditure", 
+        "Gambling Expenditure"
+      ];
+      const months = dynamicMonths.length === 3 ? dynamicMonths : ["Month1", "Month2", "Month3"];
+
+      let summary = `<h3 class='text-lg font-bold mt-6'>Summary Across Banks</h3>`;
+      summary += `<table class='w-full border-collapse border border-gray-300 mt-4'>
+                    <tr>
+                      <th class='border p-2'>Category</th>`;
+      months.forEach(m => summary += `<th class='border p-2'>${m}</th>`);
+      summary += `<th class='border p-2'>Average</th></tr>`;
+
+      categories.forEach((category, rowIndex) => {
+        summary += `<tr><td class='border p-2 font-semibold'>${category}</td>`;
+        let monthTotals = [];
+        months.forEach((_, monthIndex) => {
+          let total = 0;
+          statements.forEach(st => {
+            total += parseFloat(st.data[`${rowIndex}_${monthIndex}`]) || 0;
+          });
+          monthTotals.push(total);
+          summary += `<td class='border p-2 font-bold text-right'>${formatNumber(total)}</td>`;
+        });
+        const average = monthTotals.reduce((a, b) => a + b, 0) / months.length;
+        summary += `<td class='border p-2 font-bold text-right'>${formatNumber(average)}</td></tr>`;
+      });
+      summary += `</table>`;
+
+      const summaryContainer = document.getElementById("statementForm");
+      summaryContainer.innerHTML += summary;
+
+      // Mark the "Enter Data" button as "Edit Data"
+      const enterDataBtn = document.querySelectorAll("#bankStatements button")[statementIndex];
+      enterDataBtn.innerText = "Edit Data";
+      enterDataBtn.style.backgroundColor = "green";
+      const tickMark = document.createElement("span");
+      tickMark.innerText = " ✔";
+      tickMark.style.color = "green";
+      enterDataBtn.appendChild(tickMark);
+      checkProcessButton();
+
+      // (Additional calculation logic can be inserted here if needed.)
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      createStatementLinks();
+    });
+  </script>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
+    <!-- Logo -->
+    <img
+      src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true"
+      alt="Company Logo"
+      class="h-16 mx-auto mb-4"
+    />
+
+    <!-- Title -->
+    <h1 class="text-2xl font-bold text-center">Affordability Review</h1>
+    
+    <!-- Back to Main Menu button (below title) -->
+    <div class="mt-4">
+      <button
+        class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+        onclick="window.location.href='index.html'"
+      >
+        ← Back to Main Menu
+      </button>
+    </div>
+
+    <!-- Lead ID section -->
+    <label for="leadId" class="block mt-8 font-medium">Enter Lead ID:</label>
+    <div class="flex gap-2">
+      <input
+        type="text"
+        id="leadId"
+        placeholder="123456789"
+        class="border p-2 flex-1 rounded-md text-gray-600"
+      />
+      <button
+        onclick="fetchLeadData()"
+        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+      >
+        Fetch Data
+      </button>
+    </div>
+    
+    <!-- Lead Details -->
+    <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
+    <label class="block mt-2">Full Name:</label>
+    <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+
+    <!-- Bank Name(s) -->
+    <label class="block mt-2">Bank Name(s):</label>
+    <input type="text" id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+
+    <!-- Period Covered -->
+    <label class="block mt-2">Period Covered:</label>
+    <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+    
+    <!-- Monthly Repayment -->
+    <label class="block mt-2">Monthly Repayment:</label>
+    <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+    
+    <!-- Bank Statements Section -->
+    <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
+    <div id="bankStatements" class="mt-2"></div>
+    <div id="statementForm"></div>
+    
+    <!-- Process Data Button -->
+    <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full" disabled>
+      Process Data
+    </button>
+  </div>
+</body>
+</html>

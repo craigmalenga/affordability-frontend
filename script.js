@@ -7,30 +7,25 @@ async function selectFolder() {
     }
 }
 
-document.getElementById("listFilesBtn").addEventListener("click", handleListFiles);
+document.getElementById("loginBtn").addEventListener("click", () => {
+    // Replace with your backend login URL
+    window.location.href = "https://web-production-15e92.up.railway.app/login";
+});
 
-async function handleListFiles() {
+document.getElementById("listFilesBtn").addEventListener("click", async () => {
     try {
         const response = await fetch("https://web-production-15e92.up.railway.app/list-files");
-        
-        // If user is not logged in, your backend returns 401
-        if (response.status === 401) {
-            window.location.href = "https://web-production-15e92.up.railway.app/login";
-            return;
-        }
-
         if (!response.ok) {
             const err = await response.json();
             throw new Error(JSON.stringify(err));
         }
-
         const data = await response.json();
         renderFileList(data.value);
     } catch (error) {
         console.error("Error listing files:", error);
         alert("Failed to list files. Check console.");
     }
-}
+});
 
 function renderFileList(files) {
     const container = document.getElementById("filesContainer");
@@ -42,8 +37,8 @@ function renderFileList(files) {
     });
 }
 
-// OPTIONAL: If you're actually uploading a file, you'll need an <input type="file"> 
-// and use FormData. But if you're just sending a folder name, keep it as is:
+
+
 async function uploadFiles() {
     const folderName = document.getElementById("folderPath").value;
 
@@ -53,11 +48,10 @@ async function uploadFiles() {
     }
 
     try {
-        // Replace "https://your-backend-url/process-files" with your real endpoint:
-        const response = await fetch("https://web-production-15e92.up.railway.app/upload-file", {
+        const response = await fetch("https://your-backend-url/process-files", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ folder_path: folderName })
+            body: JSON.stringify({ folder_path: folderName }) // Send folder name only
         });
 
         const result = await response.json();
