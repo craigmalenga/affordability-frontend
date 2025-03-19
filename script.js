@@ -48,7 +48,7 @@ async function uploadFiles() {
     }
 
     try {
-        const response = await fetch("https://your-backend-url/process-files", {
+        const response = await fetch("https://web-production-15e92.up.railway.app/process-files", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ folder_path: folderName }) // Send folder name only
