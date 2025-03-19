@@ -43,7 +43,7 @@
         return;
       }
       // Adjust the URL if needed (e.g. include domain/port if not same-origin)
-      fetch(`/api/flg_data/${leadId}`)
+      fetch(`https://web-production-15e92.up.railway.app/api/flg_data/${leadId}`)
         .then(response => response.json())
         .then(data => {
           if (data.error) {
