@@ -278,6 +278,28 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
+      // Check authentication status on load
+      fetch('https://web-production-15e92.up.railway.app/api/is_authenticated')
+         .then(response => response.json())
+         .then(data => {
+               if(data.authenticated) {
+                    // Hide login button and enable "Fetch Data"
+                    document.getElementById("loginBtn").style.display = "none";
+                    document.getElementById("fetchDataBtn").disabled = false;
+                    document.getElementById("fetchDataBtn").classList.remove("bg-gray-400");
+                    document.getElementById("fetchDataBtn").classList.add("bg-blue-600");
+               } else {
+                    // Show login button and ensure "Fetch Data" remains disabled
+                    document.getElementById("loginBtn").style.display = "block";
+                    document.getElementById("fetchDataBtn").disabled = true;
+                    document.getElementById("fetchDataBtn").classList.remove("bg-blue-600");
+                    document.getElementById("fetchDataBtn").classList.add("bg-gray-400");
+               }
+         })
+         .catch(err => {
+               console.error("Error checking authentication", err);
+         });
+
       // Initially, create an empty state for statement links until FLG data is fetched.
       createStatementLinks();
     });
@@ -290,20 +312,22 @@
          alt="Company Logo" class="h-16 mx-auto mb-4"/>
     <!-- Title -->
     <h1 class="text-2xl font-bold text-center">Affordability Review</h1>
-    <!-- Back to Main Menu button -->
-    <div class="mt-4">
-      <button class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-              onclick="window.location.href='index.html'">
-        ← Back to Main Menu
+    
+    <!-- Login Button (visible if not authenticated) -->
+    <div id="authSection" class="mt-4 text-center">
+      <button id="loginBtn" onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
+              class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+        Login with Microsoft 365
       </button>
     </div>
+    
     <!-- Lead ID section -->
     <label for="leadId" class="block mt-8 font-medium">Enter Lead ID:</label>
     <div class="flex gap-2">
       <input type="text" id="leadId" placeholder="123456789"
              class="border p-2 flex-1 rounded-md text-gray-600"/>
-      <button onclick="fetchLeadData()"
-              class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+      <button id="fetchDataBtn" onclick="fetchLeadData()"
+              class="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-blue-700" disabled>
         Fetch Data
       </button>
     </div>
