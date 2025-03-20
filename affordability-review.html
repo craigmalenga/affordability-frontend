@@ -24,10 +24,6 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
-    /* Hide error box by default */
-    #errorMessage {
-      display: none;
-    }
   </style>
   
   <script>
@@ -35,6 +31,8 @@
     let dynamicMonths = [];
     // Global array for statement objects, built dynamically from FLG data.
     let statements = [];
+    // Array to track user overrides for each statement when errors occur
+    let overrides = [];
 
     function formatNumber(num) {
       return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,17 +47,12 @@
       document.getElementById("monthlyRepayment").value = "";
       document.getElementById("statementForm").innerHTML = "";
       document.getElementById("bankStatements").innerHTML = "";
+      document.getElementById("errorContainer").innerHTML = "";
       statements = [];
+      overrides = [];
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = true;
       processBtn.style.backgroundColor = "red";
-
-      // Hide any existing error message
-      const errorBox = document.getElementById("errorMessage");
-      if (errorBox) {
-        errorBox.style.display = "none";
-        document.getElementById("errorMessageText").innerText = "";
-      }
     }
 
     // Fetch FLG lead data from the backend (include credentials so the session cookie is sent)
@@ -150,7 +143,7 @@
 
         // Create a container for the button and tick mark
         const btnContainer = document.createElement("div");
-        btnContainer.classList.add("ml-4", "mt-2");
+        btnContainer.classList.add("ml-4", "mt-2", "inline-flex", "items-center", "gap-2");
 
         const enterDataBtn = document.createElement("button");
         enterDataBtn.innerText = "Enter Data";
@@ -175,11 +168,10 @@
     function loadStatementForm(statementIndex) {
       const statement = statements[statementIndex];
       const formContainer = document.getElementById("statementForm");
-      // Clear existing form content each time we open a new statement
       formContainer.innerHTML = `<h3 class='text-lg font-bold mt-6'>${statement.bank} Statement Data</h3>`;
       
       // Use dynamic months if available
-      const months = dynamicMonths.length === 3 ? dynamicMonths : ["Month1", "Month2", "Month3"];
+      const months = (dynamicMonths.length === 3) ? dynamicMonths : ["Month1", "Month2", "Month3"];
       const categories = [
         "Income", 
         "Rent/Mortgage", 
@@ -190,7 +182,9 @@
         "Gambling Expenditure"
       ];
 
-      let table = `<table class='w-full border-collapse border border-gray-300 mt-4'><tr><th class='border p-2'>Category</th>`;
+      let table = `<table class='w-full border-collapse border border-gray-300 mt-4'>
+                     <tr>
+                       <th class='border p-2'>Category</th>`;
       months.forEach(month => { table += `<th class='border p-2'>${month}</th>`; });
       table += "</tr>";
       
@@ -209,7 +203,7 @@
         });
         table += "</tr>";
       });
-      table += "</table>";
+      table += `</table>`;
 
       table += `
         <button onclick='summarizeData(${statementIndex})' 
@@ -217,7 +211,7 @@
           Upload data for this bank to summary before processing
         </button>`;
       
-      formContainer.innerHTML += table;
+      formContainer.innerHTML = table;
     }
 
     // Save the entered data for a given statement field
@@ -225,7 +219,7 @@
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
       const inputValue = document.getElementById(inputId).value;
       statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = inputValue;
-      // We only mark the statement as entered in summarizeData()
+      // We do NOT mark "entered" here; we wait for "Upload data..." button.
     }
 
     // Enable the "Process Data" button only when all statements have been processed (i.e. submitted via the summary button)
@@ -238,6 +232,8 @@
 
     // Summarize data for a bank statement and mark it as processed
     function summarizeData(statementIndex) {
+      document.getElementById("errorContainer").innerHTML = ""; // clear any previous error
+
       const categories = [
         "Income", 
         "Rent/Mortgage", 
@@ -247,9 +243,9 @@
         "Food Expenditure", 
         "Gambling Expenditure"
       ];
-      const months = dynamicMonths.length === 3 ? dynamicMonths : ["Month1", "Month2", "Month3"];
+      const months = (dynamicMonths.length === 3) ? dynamicMonths : ["Month1", "Month2", "Month3"];
       
-      // Build an overall summary table (across all banks)
+      // Build or update a "Summary Across Banks" table
       let summary = `<h3 class='text-lg font-bold mt-6'>Summary Across Banks</h3>`;
       summary += `<table class='w-full border-collapse border border-gray-300 mt-4'>
                     <tr>
@@ -273,9 +269,9 @@
       });
       summary += `</table>`;
       
-      // Display the summary table
+      // Insert or replace the summary table in the statementForm area
       const summaryContainer = document.getElementById("statementForm");
-      summaryContainer.innerHTML += summary;
+      summaryContainer.innerHTML = summary;
       
       // Update the button and add a tick mark for the processed statement
       const enterDataBtn = document.querySelectorAll("#bankStatements button")[statementIndex];
@@ -290,15 +286,99 @@
       checkProcessButton();
     }
 
-    // Perform final checks when user clicks "Process Data"
-    function processData() {
-      // First hide any previous error message
-      const errorBox = document.getElementById("errorMessage");
-      const errorText = document.getElementById("errorMessageText");
-      errorBox.style.display = "none";
-      errorText.innerText = "";
+    // Called whenever an override checkbox changes
+    function handleOverrideChange(index) {
+      const cb = document.getElementById("override_" + index);
+      overrides[index] = cb.checked;
+      checkAllOverrides();
+    }
 
-      const months = dynamicMonths.length === 3 ? dynamicMonths : ["Month1", "Month2", "Month3"];
+    // If all overrides are checked, re-enable "Process Data" and show message
+    function checkAllOverrides() {
+      const allOverridden = overrides.every(val => val);
+      const processBtn = document.getElementById("processDataBtn");
+
+      if (allOverridden) {
+        processBtn.disabled = false;
+        processBtn.style.backgroundColor = "green";
+
+        // Append or modify the error message to note the user override
+        let errorBox = document.getElementById("errorContainer").querySelector(".override-note");
+        if (!errorBox) {
+          // If there's no override-note line, insert it
+          const container = document.getElementById("errorContainer").querySelector(".alert-message");
+          if (container) {
+            container.innerHTML += `<br/><span class="override-note font-bold">User has elected to proceed despite these warnings</span>`;
+          }
+        }
+      } else {
+        processBtn.disabled = true;
+        processBtn.style.backgroundColor = "red";
+        // Remove the override note if present
+        let overrideNote = document.querySelector(".override-note");
+        if (overrideNote) {
+          overrideNote.remove();
+        }
+      }
+    }
+
+    // Create override checkboxes if not present
+    function renderOverrideCheckboxes() {
+      overrides = new Array(statements.length).fill(false); // reset overrides
+
+      statements.forEach((_, idx) => {
+        // Turn the statement's button orange, remove tick
+        const btn = document.querySelectorAll("#bankStatements button")[idx];
+        btn.style.backgroundColor = "orange";
+        btn.innerText = "Edit Data";
+        const tickSpan = document.getElementById("tick_" + idx);
+        tickSpan.innerText = "";
+
+        // Add an override checkbox if not already present
+        const container = document.querySelectorAll("#bankStatements .mb-4")[idx];
+        if (!container) return;
+
+        let cb = document.getElementById("override_" + idx);
+        if (!cb) {
+          cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.id = "override_" + idx;
+          cb.classList.add("ml-2");
+          cb.addEventListener("change", () => handleOverrideChange(idx));
+          container.appendChild(cb);
+
+          const label = document.createElement("label");
+          label.setAttribute("for", "override_" + idx);
+          label.classList.add("ml-1");
+          label.innerText = "Submit despite warning";
+          container.appendChild(label);
+        }
+      });
+    }
+
+    // Remove override checkboxes if no errors
+    function removeOverrideCheckboxes() {
+      statements.forEach((_, idx) => {
+        const cb = document.getElementById("override_" + idx);
+        if (cb) {
+          cb.remove();
+          const label = document.querySelector(`label[for="override_${idx}"]`);
+          if (label) label.remove();
+        }
+      });
+    }
+
+    // Final check when user clicks "Process Data"
+    function processFinalData() {
+      // Clear any previous error
+      document.getElementById("errorContainer").innerHTML = "";
+
+      // 1) If not all statements are "entered," just return (shouldn't happen if the button is green).
+      if (!statements.every(st => st.entered)) {
+        return;
+      }
+
+      // 2) Summation logic
       const categories = [
         "Income", 
         "Rent/Mortgage", 
@@ -308,62 +388,109 @@
         "Food Expenditure", 
         "Gambling Expenditure"
       ];
+      const months = (dynamicMonths.length === 3) ? dynamicMonths : ["Month1", "Month2", "Month3"];
 
-      let errorMonths = [];
+      let sumIncome = [0, 0, 0];
+      let sumExpenses = [0, 0, 0];
 
-      // Check each month: if total expenses > total income => error
-      for (let m = 0; m < months.length; m++) {
-        let totalIncome = 0;
-        let totalExpenses = 0;
-
-        // Sum across all statements
-        statements.forEach(st => {
-          // rowIndex=0 => Income
-          totalIncome += parseFloat(st.data[`0_${m}`]) || 0;
-          // rowIndex=1..6 => Expenses
-          for (let row = 1; row < categories.length; row++) {
-            totalExpenses += parseFloat(st.data[`${row}_${m}`]) || 0;
+      // Calculate total Income (rowIndex=0) and total Expenses (rowIndex=1..6) for each month
+      statements.forEach(st => {
+        for (let m = 0; m < 3; m++) {
+          const inc = parseFloat(st.data[`0_${m}`]) || 0;
+          sumIncome[m] += inc;
+          let exp = 0;
+          for (let r = 1; r < categories.length; r++) {
+            exp += parseFloat(st.data[`${r}_${m}`]) || 0;
           }
-        });
+          sumExpenses[m] += exp;
+        }
+      });
 
-        if (totalExpenses > totalIncome) {
-          errorMonths.push(months[m]);
+      // 3) Build an array of error/warning messages
+      let messages = [];
+
+      // (a) Check for months where expenses exceed income
+      let problemMonths = [];
+      for (let i = 0; i < 3; i++) {
+        if (sumExpenses[i] > sumIncome[i]) {
+          problemMonths.push(months[i]);
+        }
+      }
+      if (problemMonths.length > 0) {
+        // Create a single line for all months that have the problem
+        if (problemMonths.length === 1) {
+          messages.push(`Expenses exceed income for month ${problemMonths[0]}.`);
+        } else if (problemMonths.length === 2) {
+          messages.push(`Expenses exceed income for months ${problemMonths[0]} and ${problemMonths[1]}.`);
+        } else {
+          messages.push(`Expenses exceed income for months ${problemMonths.join(", ")}.`);
         }
       }
 
-      if (errorMonths.length > 0) {
-        // Construct the error message
-        let msg = "";
-        if (errorMonths.length === 1) {
-          msg = `Expenses exceed income for ${errorMonths[0]}. Please revisit your entries before proceeding.`;
-        } else if (errorMonths.length === 2) {
-          msg = `Expenses exceed income for months ${errorMonths[0]} and ${errorMonths[1]}. Please revisit your entries before proceeding.`;
-        } else {
-          // e.g. 3 months
-          msg = `Expenses exceed income for months ${errorMonths.join(", ")}. Please revisit your entries before proceeding.`;
+      // (b) Check for months where income=0 or expenses=0 => possible incomplete data
+      for (let i = 0; i < 3; i++) {
+        const inc = sumIncome[i];
+        const exp = sumExpenses[i];
+        if (inc === 0 && exp === 0) {
+          messages.push(`No income or expenses entered for month ${months[i]} (possibly incomplete data).`);
+        } else if (inc === 0) {
+          messages.push(`No income entered for month ${months[i]} (possibly incomplete data).`);
+        } else if (exp === 0) {
+          messages.push(`No expenses entered for month ${months[i]} (possibly incomplete data).`);
+        }
+      }
+
+      // 4) If we have any messages, we need to handle them
+      if (messages.length > 0) {
+        // If the user has previously overridden everything, let's check that
+        const allOverridden = overrides.length === statements.length && overrides.every(val => val);
+
+        // If not all overridden, show error box, revert button to red, create checkboxes
+        if (!allOverridden) {
+          const processBtn = document.getElementById("processDataBtn");
+          processBtn.disabled = true;
+          processBtn.style.backgroundColor = "red";
+
+          // Turn statement buttons orange, remove ticks, show override checkboxes
+          renderOverrideCheckboxes();
+
+          // Build the error message
+          // First line always:
+          let errorMsg = `<strong class="font-bold">Please revisit your entries before proceeding:</strong>`;
+          // Then each message on a new line
+          errorMsg += "<br/>";
+          messages.forEach(msg => {
+            errorMsg += `${msg}<br/>`;
+          });
+
+          // Show in a red box
+          document.getElementById("errorContainer").innerHTML = `
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4 alert-message" role="alert">
+              ${errorMsg}
+            </div>
+          `;
+          return; // end here
         }
 
-        // Show the error box
-        errorBox.style.display = "block";
-        errorText.innerText = msg;
-
-        // Re-disable the Process Data button and turn it red
-        const processBtn = document.getElementById("processDataBtn");
-        processBtn.disabled = true;
-        processBtn.style.backgroundColor = "red";
-
-        // Turn all "Edit Data" buttons orange and remove ticks
-        statements.forEach((statement, index) => {
-          const enterDataBtn = document.querySelectorAll("#bankStatements button")[index];
-          enterDataBtn.innerText = "Edit Data";
-          enterDataBtn.style.backgroundColor = "orange";
-          const tickSpan = document.getElementById("tick_" + index);
-          tickSpan.innerText = "";
-          tickSpan.style.color = "";
+        // ELSE: all overridden => proceed but still display the errors
+        // We’ll show the same messages plus a note
+        let errorMsg = `<strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>`;
+        messages.forEach(msg => {
+          errorMsg += `${msg}<br/>`;
         });
+        errorMsg += `<br/><span class="override-note font-bold">User has elected to proceed despite these warnings</span>`;
+
+        document.getElementById("errorContainer").innerHTML = `
+          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4 alert-message" role="alert">
+            ${errorMsg}
+          </div>
+        `;
+        // Now redirect to next page
+        window.location.href = 'affordability-summary.html';
       } else {
-        // If no errors, open the new page
-        window.location.href = "affordability-summary.html";
+        // 5) No errors at all => remove override checkboxes if any, proceed to next page
+        removeOverrideCheckboxes();
+        window.location.href = 'affordability-summary.html';
       }
     }
 
@@ -433,7 +560,8 @@
     <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
     <label class="block mt-2">Full Name:</label>
     <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-
+    
+    <!-- Updated labels for display fields -->
     <label class="block mt-2">Bank Accounts to be Considered:</label>
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     
@@ -443,7 +571,7 @@
     <label class="block mt-2">Paths to Relevant Bank Statements:</label>
     <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     
-    <label class="block mt-2">Monthly Repayments being Assessed for Affordability</label>
+    <label class="block mt-2">Monthly Repayments being Assessed for Affordability:</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
     
     <!-- Bank Statements Section -->
@@ -451,20 +579,19 @@
     <div id="bankStatements" class="mt-2"></div>
     <div id="statementForm"></div>
     
-    <!-- Error Message Box (hidden by default) -->
-    <div id="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative my-4" role="alert">
-      <span id="errorMessageText" class="block sm:inline"></span>
-    </div>
-
+    <!-- Error / Warning container -->
+    <div id="errorContainer"></div>
+    
     <!-- Process Data Button -->
     <button id="processDataBtn" 
             class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full" 
             disabled
-            onclick="processData()">
+            onclick="processFinalData()">
       Process Data
     </button>
   </div>
 </body>
 </html>
+
 
 
