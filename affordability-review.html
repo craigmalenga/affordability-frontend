@@ -24,6 +24,10 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
+    /* Hide error box by default */
+    #errorMessage {
+      display: none;
+    }
   </style>
   
   <script>
@@ -49,6 +53,13 @@
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = true;
       processBtn.style.backgroundColor = "red";
+
+      // Hide any existing error message
+      const errorBox = document.getElementById("errorMessage");
+      if (errorBox) {
+        errorBox.style.display = "none";
+        document.getElementById("errorMessageText").innerText = "";
+      }
     }
 
     // Fetch FLG lead data from the backend (include credentials so the session cookie is sent)
@@ -164,6 +175,7 @@
     function loadStatementForm(statementIndex) {
       const statement = statements[statementIndex];
       const formContainer = document.getElementById("statementForm");
+      // Clear existing form content each time we open a new statement
       formContainer.innerHTML = `<h3 class='text-lg font-bold mt-6'>${statement.bank} Statement Data</h3>`;
       
       // Use dynamic months if available
@@ -213,7 +225,7 @@
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
       const inputValue = document.getElementById(inputId).value;
       statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = inputValue;
-      // Removed auto-marking as entered to ensure the bank is only marked as processed upon data submission via summarizeData()
+      // We only mark the statement as entered in summarizeData()
     }
 
     // Enable the "Process Data" button only when all statements have been processed (i.e. submitted via the summary button)
@@ -237,6 +249,7 @@
       ];
       const months = dynamicMonths.length === 3 ? dynamicMonths : ["Month1", "Month2", "Month3"];
       
+      // Build an overall summary table (across all banks)
       let summary = `<h3 class='text-lg font-bold mt-6'>Summary Across Banks</h3>`;
       summary += `<table class='w-full border-collapse border border-gray-300 mt-4'>
                     <tr>
@@ -260,6 +273,7 @@
       });
       summary += `</table>`;
       
+      // Display the summary table
       const summaryContainer = document.getElementById("statementForm");
       summaryContainer.innerHTML += summary;
       
@@ -274,6 +288,83 @@
       // Mark this statement as processed only after clicking the summary button
       statements[statementIndex].entered = true;
       checkProcessButton();
+    }
+
+    // Perform final checks when user clicks "Process Data"
+    function processData() {
+      // First hide any previous error message
+      const errorBox = document.getElementById("errorMessage");
+      const errorText = document.getElementById("errorMessageText");
+      errorBox.style.display = "none";
+      errorText.innerText = "";
+
+      const months = dynamicMonths.length === 3 ? dynamicMonths : ["Month1", "Month2", "Month3"];
+      const categories = [
+        "Income", 
+        "Rent/Mortgage", 
+        "Council Tax", 
+        "Utilities", 
+        "Credit Commitments", 
+        "Food Expenditure", 
+        "Gambling Expenditure"
+      ];
+
+      let errorMonths = [];
+
+      // Check each month: if total expenses > total income => error
+      for (let m = 0; m < months.length; m++) {
+        let totalIncome = 0;
+        let totalExpenses = 0;
+
+        // Sum across all statements
+        statements.forEach(st => {
+          // rowIndex=0 => Income
+          totalIncome += parseFloat(st.data[`0_${m}`]) || 0;
+          // rowIndex=1..6 => Expenses
+          for (let row = 1; row < categories.length; row++) {
+            totalExpenses += parseFloat(st.data[`${row}_${m}`]) || 0;
+          }
+        });
+
+        if (totalExpenses > totalIncome) {
+          errorMonths.push(months[m]);
+        }
+      }
+
+      if (errorMonths.length > 0) {
+        // Construct the error message
+        let msg = "";
+        if (errorMonths.length === 1) {
+          msg = `Expenses exceed income for ${errorMonths[0]}. Please revisit your entries before proceeding.`;
+        } else if (errorMonths.length === 2) {
+          msg = `Expenses exceed income for months ${errorMonths[0]} and ${errorMonths[1]}. Please revisit your entries before proceeding.`;
+        } else {
+          // e.g. 3 months
+          msg = `Expenses exceed income for months ${errorMonths.join(", ")}. Please revisit your entries before proceeding.`;
+        }
+
+        // Show the error box
+        errorBox.style.display = "block";
+        errorText.innerText = msg;
+
+        // Re-disable the Process Data button and turn it red
+        const processBtn = document.getElementById("processDataBtn");
+        processBtn.disabled = true;
+        processBtn.style.backgroundColor = "red";
+
+        // Turn all "Edit Data" buttons orange and remove ticks
+        statements.forEach((statement, index) => {
+          const enterDataBtn = document.querySelectorAll("#bankStatements button")[index];
+          enterDataBtn.innerText = "Edit Data";
+          enterDataBtn.style.backgroundColor = "orange";
+          const tickSpan = document.getElementById("tick_" + index);
+          tickSpan.innerText = "";
+          tickSpan.style.color = "";
+        });
+      } else {
+        // If no errors, open the new page
+        window.location.href = "affordability-summary.html";
+      }
     }
 
     // Check session status on page load to update authentication UI
@@ -342,17 +433,17 @@
     <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
     <label class="block mt-2">Full Name:</label>
     <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-    <!-- Updated labels for display fields -->
-    <label class="block mt-2">Bank Accounts to be Considered as part of Assessment</label>
+
+    <label class="block mt-2">Bank Accounts to be Considered:</label>
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     
-    <label class="block mt-2">Period that Bank Statements are to be Considered</label>
+    <label class="block mt-2">Period that Bank Statements cover:</label>
     <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
     
-    <label class="block mt-2">Paths to Relevant Bank Statements to be Considered</label>
+    <label class="block mt-2">Paths to Relevant Bank Statements:</label>
     <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     
-    <label class="block mt-2">Monthly Repayments that we are Assessing for Affordability</label>
+    <label class="block mt-2">Monthly Repayments being Assessed for Affordability</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
     
     <!-- Bank Statements Section -->
@@ -360,8 +451,16 @@
     <div id="bankStatements" class="mt-2"></div>
     <div id="statementForm"></div>
     
+    <!-- Error Message Box (hidden by default) -->
+    <div id="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative my-4" role="alert">
+      <span id="errorMessageText" class="block sm:inline"></span>
+    </div>
+
     <!-- Process Data Button -->
-    <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full" disabled>
+    <button id="processDataBtn" 
+            class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full" 
+            disabled
+            onclick="processData()">
       Process Data
     </button>
   </div>
