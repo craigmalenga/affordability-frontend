@@ -31,7 +31,7 @@
     let dynamicMonths = [];
     // Global array for statement objects, built dynamically from FLG data.
     let statements = [];
-    // Global variable to hold the prior input data string
+    // Global variable to hold the prior input data string (from data6)
     let priorInputData = "";
     // Array to track user overrides for each statement when errors occur
     let overrides = [];
@@ -47,6 +47,7 @@
       document.getElementById("statement_urls").value = "";
       document.getElementById("periodCovered").value = "";
       document.getElementById("monthlyRepayment").value = "";
+      document.getElementById("priorInputData").value = "";
       document.getElementById("statementForm").innerHTML = "";
       document.getElementById("bankStatements").innerHTML = "";
       document.getElementById("errorContainer").innerHTML = "";
@@ -94,6 +95,12 @@
           
           document.getElementById("periodCovered").value = data.periodCovered || "";
           document.getElementById("monthlyRepayment").value = data.monthlyRepayment || "";
+
+          // NEW: Show the raw data6 in a read-only text area (for debugging / visibility)
+          if (data.inputData && data.inputData.trim() !== "") {
+            priorInputData = data.inputData.trim();
+            document.getElementById("priorInputData").value = priorInputData;
+          }
           
           // Set dynamic months for table headings
           if (Array.isArray(data.monthsForTable) && data.monthsForTable.length === 3) {
@@ -120,22 +127,9 @@
             createStatementLinks();
           }
 
-          // Process and store prior input data if available and not blank
-          if (data.inputData && data.inputData.trim() !== "") {
-            priorInputData = data.inputData;
-            // Create the "load prior input data" button if not already created
-            if (!document.getElementById("loadPriorBtn")) {
-              const loadPriorBtn = document.createElement("button");
-              loadPriorBtn.id = "loadPriorBtn";
-              loadPriorBtn.innerText = "Option: load prior input data for this user to edit";
-              loadPriorBtn.classList.add("bg-green-600", "text-white", "px-4", "py-2", "rounded-md");
-              // Set width to about twice that of the "Enter Data" buttons (adjust as needed)
-              loadPriorBtn.style.width = "200px";
-              // Insert the button below the bankStatements div
-              const bankStatementsDiv = document.getElementById("bankStatements");
-              bankStatementsDiv.appendChild(loadPriorBtn);
-              loadPriorBtn.onclick = loadPriorInputData;
-            }
+          // If prior input data is available, show the "load prior input data" button
+          if (priorInputData) {
+            createLoadPriorButton();
           }
         })
         .catch(err => {
@@ -167,6 +161,7 @@
         btnContainer.classList.add("btn-container", "ml-4", "mt-2", "flex", "items-center");
 
         const enterDataBtn = document.createElement("button");
+        enterDataBtn.id = "enterDataBtn_" + index; // give an ID so we can update color/text
         enterDataBtn.innerText = "Enter Data";
         enterDataBtn.classList.add("bg-blue-600", "text-white", "px-4", "py-2", "rounded-md");
         enterDataBtn.onclick = () => loadStatementForm(index);
@@ -178,12 +173,42 @@
 
         btnContainer.appendChild(enterDataBtn);
         btnContainer.appendChild(tickSpan);
-        // (Override checkbox will be appended here later when needed)
 
         container.appendChild(viewLink);
         container.appendChild(btnContainer);
         pdfContainer.appendChild(container);
       });
+    }
+
+    // Create the "load prior input data" button (left-aligned, text centered)
+    function createLoadPriorButton() {
+      // If already exists, do nothing
+      if (document.getElementById("loadPriorBtn")) return;
+
+      const bankStatementsDiv = document.getElementById("bankStatements");
+
+      const loadPriorBtnContainer = document.createElement("div");
+      loadPriorBtnContainer.classList.add("mb-4");  // margin bottom
+
+      const loadPriorBtn = document.createElement("button");
+      loadPriorBtn.id = "loadPriorBtn";
+      loadPriorBtn.innerText = "Option: load prior input data for this user to edit";
+      // Make it appear as a block so text can be centered
+      loadPriorBtn.classList.add(
+        "bg-green-600", 
+        "text-white", 
+        "px-4", 
+        "py-2", 
+        "rounded-md", 
+        "block", 
+        "text-center"
+      );
+      // Let it fill the container width (left-aligned with same margin as other buttons if desired)
+      // If you want it to line up with the "ml-4" offset, you can do so. For purely left-aligned, omit "ml-4".
+      loadPriorBtnContainer.appendChild(loadPriorBtn);
+      bankStatementsDiv.appendChild(loadPriorBtnContainer);
+
+      loadPriorBtn.onclick = loadPriorInputData;
     }
 
     // Load the statement form for a given bank statement
@@ -505,7 +530,7 @@
       }
     }
 
-    // NEW: Function to parse the prior input data and prepopulate matching bank statement data
+    // Load prior input data (data6) into matching banks
     function loadPriorInputData() {
       if (!priorInputData) {
         alert("No prior input data available.");
@@ -536,6 +561,13 @@
               }
             }
           }
+          // Also change the button color/text to indicate data is prepopulated
+          const btn = document.getElementById(`enterDataBtn_${foundIndex}`);
+          if (btn) {
+            btn.innerText = "Review Data";
+            btn.classList.remove("bg-blue-600", "text-white");
+            btn.classList.add("bg-yellow-400", "text-black");
+          }
         }
       }
       alert("Prior input data loaded for matching bank accounts.");
@@ -565,7 +597,7 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
-      createStatementLinks();
+      createStatementLinks(); // Initialize empty statements UI
     });
   </script>
 </head>
@@ -606,18 +638,25 @@
     <label class="block mt-2">Full Name:</label>
     <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
     
-    <!-- Updated labels for display fields -->
+    <!-- Bank Accounts -->
     <label class="block mt-2">Bank Accounts to be Considered:</label>
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     
+    <!-- Period Covered -->
     <label class="block mt-2">Period that Bank Statements cover:</label>
     <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
     
+    <!-- Statement URLs -->
     <label class="block mt-2">Paths to Relevant Bank Statements:</label>
     <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     
+    <!-- Monthly Repayment -->
     <label class="block mt-2">Monthly Repayments being Assessed for Affordability:</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+
+    <!-- NEW: show raw data6 content for debugging -->
+    <label class="block mt-2">Raw data6 (prior input) from FLG:</label>
+    <textarea id="priorInputData" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     
     <!-- Bank Statements Section -->
     <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
@@ -637,7 +676,6 @@
   </div>
 </body>
 </html>
-
 
 
 
