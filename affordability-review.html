@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Affordability Review</title>
+  <title>Affordability Assessment</title>
   
   <!-- Favicon snippet -->
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
@@ -51,7 +51,7 @@
       processBtn.style.backgroundColor = "red";
     }
 
-    // Fetch FLG lead data from the backend
+    // Fetch FLG lead data from the backend (include credentials so the session cookie is sent)
     function fetchLeadData() {
       resetForm();
       const leadId = document.getElementById("leadId").value.trim();
@@ -59,7 +59,7 @@
         alert("Please enter a valid Lead ID.");
         return;
       }
-      fetch(`https://web-production-15e92.up.railway.app/api/flg_data/${leadId}`)
+      fetch(`https://web-production-15e92.up.railway.app/api/flg_data/${leadId}`, { credentials: 'include' })
         .then(response => response.json())
         .then(data => {
           if (data.error) {
@@ -277,53 +277,60 @@
       checkProcessButton();
     }
 
+    // Check session status on page load to update authentication UI
+    function checkSession() {
+      fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: 'include' })
+        .then(response => response.json())
+        .then(data => {
+          const loginBtn = document.getElementById("loginBtn");
+          const fetchDataBtn = document.getElementById("fetchDataBtn");
+          if(data.logged_in) {
+            loginBtn.innerText = "Logged in with Microsoft 365";
+            loginBtn.className = "bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700";
+            fetchDataBtn.disabled = false;
+          } else {
+            loginBtn.innerText = "Log in with Microsoft 365";
+            loginBtn.className = "bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700";
+            fetchDataBtn.disabled = true;
+          }
+        })
+        .catch(err => {
+          console.error("Error checking session status:", err);
+        });
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       // Check authentication status on load
-      fetch('https://web-production-15e92.up.railway.app/api/is_authenticated')
-         .then(response => response.json())
-         .then(data => {
-               if(data.authenticated) {
-                    // Hide login button and enable "Fetch Data"
-                    document.getElementById("loginBtn").style.display = "none";
-                    document.getElementById("fetchDataBtn").disabled = false;
-                    document.getElementById("fetchDataBtn").classList.remove("bg-gray-400");
-                    document.getElementById("fetchDataBtn").classList.add("bg-blue-600");
-               } else {
-                    // Show login button and ensure "Fetch Data" remains disabled
-                    document.getElementById("loginBtn").style.display = "block";
-                    document.getElementById("fetchDataBtn").disabled = true;
-                    document.getElementById("fetchDataBtn").classList.remove("bg-blue-600");
-                    document.getElementById("fetchDataBtn").classList.add("bg-gray-400");
-               }
-         })
-         .catch(err => {
-               console.error("Error checking authentication", err);
-         });
-
-      // Initially, create an empty state for statement links until FLG data is fetched.
+      checkSession();
+      // Create an initial empty state for statement links
       createStatementLinks();
     });
   </script>
 </head>
 <body class="bg-gray-100 p-6">
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
-    <!-- Logo -->
-    <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true"
-         alt="Company Logo" class="h-16 mx-auto mb-4"/>
-    <!-- Title -->
-    <h1 class="text-2xl font-bold text-center">Affordability Review</h1>
-    
-    <!-- Login Button (visible if not authenticated) -->
-    <div id="authSection" class="mt-4 text-center">
+    <!-- Top bar with two buttons -->
+    <div class="flex justify-between items-center mb-4">
+      <button id="returnMenuBtn" onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/affordability-review.html'" 
+              class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+        Return to Main Menu
+      </button>
       <button id="loginBtn" onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
-              class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-        Login with Microsoft 365
+              class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+        Log in with Microsoft 365
       </button>
     </div>
     
+    <!-- Logo and Title -->
+    <div class="text-center mb-4">
+      <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true"
+           alt="Company Logo" class="h-16 mx-auto mb-2"/>
+      <h1 class="text-2xl font-bold">Affordability Assessment</h1>
+    </div>
+    
     <!-- Lead ID section -->
-    <label for="leadId" class="block mt-8 font-medium">Enter Lead ID:</label>
-    <div class="flex gap-2">
+    <label for="leadId" class="block mt-4 font-medium">Enter Lead ID:</label>
+    <div class="flex gap-2 mt-2">
       <input type="text" id="leadId" placeholder="123456789"
              class="border p-2 flex-1 rounded-md text-gray-600"/>
       <button id="fetchDataBtn" onclick="fetchLeadData()"
@@ -331,14 +338,15 @@
         Fetch Data
       </button>
     </div>
+    
     <!-- Lead Details -->
     <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
     <label class="block mt-2">Full Name:</label>
     <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-    <!-- Display bank names (each on its own line) -->
+    <!-- Display bank names -->
     <label class="block mt-2">Statement(s) to process:</label>
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
-    <!-- Display statement URLs (each on its own line) -->
+    <!-- Display statement URLs -->
     <label class="block mt-2">Urls:</label>
     <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     <!-- Period Covered -->
@@ -347,10 +355,12 @@
     <!-- Monthly Repayment -->
     <label class="block mt-2">Monthly Repayment:</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+    
     <!-- Bank Statements Section -->
     <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
     <div id="bankStatements" class="mt-2"></div>
     <div id="statementForm"></div>
+    
     <!-- Process Data Button -->
     <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full" disabled>
       Process Data
