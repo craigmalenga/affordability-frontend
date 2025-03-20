@@ -108,7 +108,7 @@
     }
 
     /*************************************
-     * Reset Form
+     * Reset Form Function
      *************************************/
     function resetForm() {
       document.getElementById("fullName").value = "";
@@ -133,7 +133,7 @@
     }
 
     /*************************************
-     * Fetch Lead Data
+     * Fetch Lead Data Function
      *************************************/
     function fetchLeadData() {
       resetForm();
@@ -185,7 +185,7 @@
     }
 
     /*************************************
-     * Create Statement Links
+     * Create Statement Links Function
      *************************************/
     function createStatementLinks() {
       const pdfContainer = document.getElementById("bankStatements");
@@ -251,9 +251,10 @@
         months.forEach((_, monthIndex) => {
           const rawVal = statement.data[`${rowIndex}_${monthIndex}`] || 0;
           const displayVal = formatNumericValue(rawVal);
+          // Add "text-right" class to right-justify the input
           table += `
             <td class='border p-2'>
-              <input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}' class='border p-2 w-full rounded-md' value="${displayVal}" onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})">
+              <input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}' class='border p-2 w-full rounded-md text-right' value="${displayVal}" onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})">
             </td>`;
         });
         table += "</tr>";
@@ -303,7 +304,7 @@
     }
 
     /*************************************
-     * Load Prior Input Data
+     * Load Prior Input Data Function
      *************************************/
     function loadPriorInputData() {
       if (!priorInputData) { alert("No prior input data available."); return; }
@@ -393,7 +394,8 @@
       if (!timerDiv) {
         timerDiv = document.createElement("div");
         timerDiv.id = "timerOverrideDiv";
-        timerDiv.classList.add("mt-4", "p-4");
+        // Make sure this div is full width (same as Process Data button)
+        timerDiv.classList.add("w-full", "mt-4", "p-4");
         container.appendChild(timerDiv);
       }
       let message, overrideText, bgColor;
@@ -411,7 +413,7 @@
         bgColor = "bg-green-100 border-green-400 text-green-700";
       }
       timerDiv.innerHTML = `
-        <div class="border ${bgColor} px-4 py-3 rounded relative" role="alert">
+        <div class="border ${bgColor} px-4 py-3 rounded relative w-full" role="alert">
           <span>${message}</span>
           <div class="mt-2">
             <input type="checkbox" id="timerOverrideCheckbox" class="mr-2" />
@@ -472,8 +474,15 @@
         }
       }
       
-      // Render bank-level override checkboxes if warnings exist
-      if (bankWarnings) { renderOverrideCheckboxes(); }
+      // Render bank-level warnings in a red box if any warnings exist
+      let combinedHTML = "";
+      if (bankWarnings) {
+        combinedHTML += `<div class="border border-red-400 bg-red-100 text-red-700 px-4 py-3 rounded relative w-full">
+                           <strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>
+                           ${bankWarnings}
+                         </div><br/>`;
+        renderOverrideCheckboxes();
+      }
       
       // Stop timer and compute average time per manually-entered bank
       const totalSec = stopTimer();
@@ -481,18 +490,12 @@
       if (nBanksManual < 1) { nBanksManual = 1; }
       const timePerBank = (totalSec / 60) / nBanksManual;
       
-      // Build combined error message
-      let combinedHTML = "";
-      if (bankWarnings) {
-        combinedHTML += `<strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>${bankWarnings}<br/>`;
-      }
+      // Append timer override box (it will be full width as well)
       combinedHTML += `<div id="timerOverridePlaceholder"></div>`;
       document.getElementById("errorContainer").innerHTML = combinedHTML;
       
-      // Render timer override box
       renderTimerOverrideBox(timePerBank);
       
-      // Check if all overrides are acknowledged
       const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
       if (!(bankOverridesOk && timerOverrideAcknowledged)) {
         const processBtn = document.getElementById("processDataBtn");
@@ -504,7 +507,7 @@
       localStorage.setItem("affordabilityPage1Time", String(totalSec));
       window.location.href = 'affordability-summary.html';
     }
-    
+
     /*************************************
      * Check Process Button State
      *************************************/
@@ -514,7 +517,7 @@
       processBtn.disabled = !allEntered;
       processBtn.style.backgroundColor = allEntered ? "green" : "red";
     }
-    
+
     /*************************************
      * Session Check
      *************************************/
@@ -562,7 +565,7 @@
       <h1 class="text-2xl font-bold">Affordability Assessment</h1>
     </div>
     
-    <!-- Lead ID section -->
+    <!-- Lead ID Section -->
     <label for="leadId" class="block mt-4 font-medium">Enter Lead ID:</label>
     <div class="flex gap-2 mt-2">
       <input type="text" id="leadId" placeholder="123456789" class="border p-2 flex-1 rounded-md text-gray-600"/>
@@ -600,17 +603,16 @@
     <div id="bankStatements" class="mt-2"></div>
     <div id="statementForm"></div>
     
-    <!-- Error / Warning Container (for bank warnings and timer override) -->
-    <div id="errorContainer"></div>
+    <!-- Error / Warning Container (full width) -->
+    <div id="errorContainer" class="w-full"></div>
     
-    <!-- Process Data Button -->
+    <!-- Process Data Button (full width) -->
     <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full" disabled onclick="processFinalData()">
       Process Data
     </button>
   </div>
 </body>
 </html>
-
 
 
 
