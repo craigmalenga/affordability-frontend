@@ -24,7 +24,11 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
-    /* Ensuring consistent gap below error container */
+    /* Force error container and its child boxes to be full width */
+    #errorContainer, #bankWarningsDiv, #timerOverrideDiv {
+      width: 100%;
+    }
+    /* Consistent spacing below error container */
     #errorContainer {
       margin-bottom: 20px;
     }
@@ -32,7 +36,7 @@
   
   <script>
     /*************************************
-     * Timer Configuration (can be moved to a separate file)
+     * Timer Configuration (could be in a separate file)
      *************************************/
     const TIMER_CONFIG = {
       minTime: 15,  // minutes: lower limit
@@ -385,7 +389,7 @@
       if (bankWarningsDiv && (overrides.length === statements.length && overrides.every(val => val))) {
         if (!bankWarningsDiv.querySelector(".override-confirmation")) {
           const msg = document.createElement("div");
-          msg.classList.add("override-confirmation", "mt-2", "font-bold");
+          msg.classList.add("override-confirmation", "mt-2", "font-bold", "text-red-700");
           msg.innerText = "User has elected to proceed despite these warnings";
           bankWarningsDiv.appendChild(msg);
         }
@@ -409,6 +413,7 @@
       if (!timerDiv) {
         timerDiv = document.createElement("div");
         timerDiv.id = "timerOverrideDiv";
+        // Ensure full width and consistent margin (20px gap)
         timerDiv.classList.add("w-full", "mt-2", "p-4");
         container.appendChild(timerDiv);
       }
@@ -490,7 +495,7 @@
       
       let combinedHTML = "";
       if (bankWarnings) {
-        // Wrap bank warnings in a red box with an id so we can later append the confirmation message.
+        // Wrap bank warnings in a red box with fixed spacing and width
         combinedHTML += `<div id="bankWarningsDiv" class="border border-red-400 bg-red-100 text-red-700 px-4 py-3 rounded relative w-full" style="margin-bottom:20px;">
                            <strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>
                            ${bankWarnings}
@@ -504,7 +509,7 @@
       if (nBanksManual < 1) { nBanksManual = 1; }
       const timePerBank = (totalSec / 60) / nBanksManual;
       
-      // Append timer override box with a 20px gap
+      // Append timer override box with a 20px top margin
       combinedHTML += `<div id="timerOverridePlaceholder" style="margin-top:20px;"></div>`;
       document.getElementById("errorContainer").innerHTML = combinedHTML;
       
@@ -620,7 +625,7 @@
     <!-- Error / Warning Container (full width) -->
     <div id="errorContainer" class="w-full"></div>
     
-    <!-- Process Data Button (full width) -->
+    <!-- Process Data Button (full width, with 20px gap above) -->
     <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full" disabled onclick="processFinalData()">
       Process Data
     </button>
