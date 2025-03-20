@@ -28,12 +28,11 @@
   
   <script>
     /*************************************
-     * Timer Configuration
-     * (This block could be moved to a separate file, e.g. timerConfig.js)
+     * Timer Configuration (can be moved to timerConfig.js)
      *************************************/
     const TIMER_CONFIG = {
-      minTime: 15,  // minutes minimum expected per bank
-      maxTime: 30,  // minutes maximum expected per bank
+      minTime: 15,  // minimum expected minutes per bank
+      maxTime: 30,  // maximum expected minutes per bank
       warningMessageLow: "Time per Bank Account to review and categorise data was only {time} minutes per bank – are you sure you reviewed everything carefully?",
       warningMessageHigh: "Time per Bank Account to review and categorise data was {time} minutes per bank – this is taking longer than the recommended range of 15 to 30 minutes per bank – please discuss any training requirements with your line manager",
       normalMessage: "Time per Bank Account in the expected range of between 15 to 30 minutes to review and categorise",
@@ -45,14 +44,14 @@
     /*************************************
      * Global Variables
      *************************************/
-    let dynamicMonths = [];        // returned from FLG
-    let statements = [];           // array of bank statement objects
-    let priorInputData = "";       // data6 string from FLG
-    let overrides = [];            // track bank-level override checkboxes
-    let timerOverrideAcknowledged = false;  // track timer override
-    let startTime = null;          // when user clicks "Fetch Data"
-    let timerInterval = null;      // for setInterval
-    let totalTimeSpentSeconds = 0; // total seconds elapsed
+    let dynamicMonths = [];
+    let statements = [];
+    let priorInputData = "";
+    let overrides = [];
+    let timerOverrideAcknowledged = false;
+    let startTime = null;
+    let timerInterval = null;
+    let totalTimeSpentSeconds = 0;
 
     /*************************************
      * Timer Functions
@@ -89,9 +88,9 @@
     function formatNumericValue(num) {
       return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    
+
     /*************************************
-     * Save and Format Data
+     * Save Data Function
      *************************************/
     function saveData(statementIndex, rowIndex, monthIndex) {
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
@@ -100,8 +99,6 @@
       if (isNaN(val)) { val = 0; }
       statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = val;
       inputElem.value = formatNumericValue(val);
-      
-      // Uncheck bank-level override if present
       const cb = document.getElementById("override_" + statementIndex);
       if (cb && cb.checked) {
         cb.checked = false;
@@ -109,7 +106,7 @@
         checkAllOverrides();
       }
     }
-    
+
     /*************************************
      * Reset Form
      *************************************/
@@ -134,9 +131,9 @@
       processBtn.disabled = true;
       processBtn.style.backgroundColor = "red";
     }
-    
+
     /*************************************
-     * Fetch Lead Data from Backend
+     * Fetch Lead Data
      *************************************/
     function fetchLeadData() {
       resetForm();
@@ -158,11 +155,9 @@
           } else { document.getElementById("statement_urls").value = ""; }
           document.getElementById("periodCovered").value = data.periodCovered || "";
           document.getElementById("monthlyRepayment").value = data.monthlyRepayment || "";
-          
           if (Array.isArray(data.monthsForTable) && data.monthsForTable.length === 3) {
             dynamicMonths = data.monthsForTable;
           } else { dynamicMonths = ["N/A", "N/A", "N/A"]; }
-          
           if (data.bankNames && data.statement_urls) {
             const bankNamesArr = data.bankNames.split(",").map(n => n.trim()).filter(Boolean);
             const statementUrlsArr = data.statement_urls.split(",").map(u => u.trim()).filter(Boolean);
@@ -178,7 +173,6 @@
             }));
             createStatementLinks();
           }
-          
           if (data.inputData && data.inputData.trim() !== "") {
             priorInputData = data.inputData.trim();
             createLoadPriorButton();
@@ -189,9 +183,9 @@
           alert("Failed to fetch data from FLG. Check console for details.");
         });
     }
-    
+
     /*************************************
-     * Create Statement Links & Buttons
+     * Create Statement Links
      *************************************/
     function createStatementLinks() {
       const pdfContainer = document.getElementById("bankStatements");
@@ -222,7 +216,7 @@
         pdfContainer.appendChild(container);
       });
     }
-    
+
     /*************************************
      * Create Load Prior Input Button
      *************************************/
@@ -239,7 +233,7 @@
       loadPriorBtnContainer.appendChild(loadPriorBtn);
       bankStatementsDiv.appendChild(loadPriorBtnContainer);
     }
-    
+
     /*************************************
      * Load Statement Form for a Bank
      *************************************/
@@ -271,7 +265,7 @@
         </button>`;
       formContainer.innerHTML = table;
     }
-    
+
     /*************************************
      * Summarize Data for a Bank Statement
      *************************************/
@@ -288,9 +282,7 @@
         let monthTotals = [];
         months.forEach((_, monthIndex) => {
           let total = 0;
-          statements.forEach(st => {
-            total += st.data[`${rowIndex}_${monthIndex}`] || 0;
-          });
+          statements.forEach(st => { total += st.data[`${rowIndex}_${monthIndex}`] || 0; });
           monthTotals.push(total);
           summary += `<td class='border p-2 font-bold text-right'>${formatNumericValue(total)}</td>`;
         });
@@ -309,9 +301,9 @@
       statements[statementIndex].entered = true;
       checkProcessButton();
     }
-    
+
     /*************************************
-     * Load Prior Input Data into Banks
+     * Load Prior Input Data
      *************************************/
     function loadPriorInputData() {
       if (!priorInputData) { alert("No prior input data available."); return; }
@@ -344,7 +336,7 @@
       }
       alert("Prior input data loaded for matching bank accounts.");
     }
-    
+
     /*************************************
      * Override Check Functions
      *************************************/
@@ -355,7 +347,6 @@
       processBtn.disabled = !allOk;
       processBtn.style.backgroundColor = allOk ? "green" : "red";
     }
-    
     function renderOverrideCheckboxes() {
       overrides = new Array(statements.length).fill(false);
       statements.forEach((_, idx) => {
@@ -384,7 +375,6 @@
         }
       });
     }
-    
     function removeOverrideCheckboxes() {
       statements.forEach((_, idx) => {
         const cb = document.getElementById("override_" + idx);
@@ -393,7 +383,7 @@
         if (label) { label.remove(); }
       });
     }
-    
+
     /*************************************
      * Render Timer Override Box
      *************************************/
@@ -434,13 +424,15 @@
         checkAllOverrides();
       });
     }
-    
+
     /*************************************
-     * Final Process Data Function
+     * Final Process Data Function (Combined Warnings)
      *************************************/
     function processFinalData() {
       document.getElementById("errorContainer").innerHTML = "";
       if (!statements.every(st => st.entered)) { return; }
+      
+      // Compute bank-level totals and warnings
       const categories = ["Income", "Rent/Mortgage", "Council Tax", "Utilities", "Credit Commitments", "Food Expenditure", "Gambling Expenditure"];
       const months = (dynamicMonths.length === 3) ? dynamicMonths : ["Month1", "Month2", "Month3"];
       let sumIncome = [0, 0, 0], sumExpenses = [0, 0, 0];
@@ -455,58 +447,59 @@
           sumExpenses[m] += exp;
         }
       });
-      let messages = [];
+      let bankWarnings = "";
       let problemMonths = [];
       for (let i = 0; i < 3; i++) {
         if (sumExpenses[i] > sumIncome[i]) { problemMonths.push(months[i]); }
       }
       if (problemMonths.length > 0) {
         if (problemMonths.length === 1) {
-          messages.push(`Expenses exceed income for month ${problemMonths[0]}.`);
+          bankWarnings += `Expenses exceed income for month ${problemMonths[0]}.<br/>`;
         } else if (problemMonths.length === 2) {
-          messages.push(`Expenses exceed income for months ${problemMonths[0]} and ${problemMonths[1]}.`);
+          bankWarnings += `Expenses exceed income for months ${problemMonths[0]} and ${problemMonths[1]}.<br/>`;
         } else {
-          messages.push(`Expenses exceed income for months ${problemMonths.join(", ")}.`);
+          bankWarnings += `Expenses exceed income for months ${problemMonths.join(", ")}.<br/>`;
         }
       }
       for (let i = 0; i < 3; i++) {
         const inc = sumIncome[i], exp = sumExpenses[i];
         if (inc === 0 && exp === 0) {
-          messages.push(`No income or expenses entered for month ${months[i]} (possibly incomplete data).`);
+          bankWarnings += `No income or expenses entered for month ${months[i]} (possibly incomplete data).<br/>`;
         } else if (inc === 0) {
-          messages.push(`No income entered for month ${months[i]} (possibly incomplete data).`);
+          bankWarnings += `No income entered for month ${months[i]} (possibly incomplete data).<br/>`;
         } else if (exp === 0) {
-          messages.push(`No expenses entered for month ${months[i]} (possibly incomplete data).`);
-        }
-      }
-      if (messages.length > 0) {
-        const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
-        if (!bankOverridesOk) {
-          const processBtn = document.getElementById("processDataBtn");
-          processBtn.disabled = true;
-          processBtn.style.backgroundColor = "red";
-          renderOverrideCheckboxes();
-          let errorMsg = `<strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>`;
-          messages.forEach(msg => { errorMsg += `${msg}<br/>`; });
-          document.getElementById("errorContainer").innerHTML = `
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4 alert-message" role="alert">
-              ${errorMsg}
-            </div>
-          `;
-          return;
+          bankWarnings += `No expenses entered for month ${months[i]} (possibly incomplete data).<br/>`;
         }
       }
       
-      // -----------------------------
-      // Timer Override Logic
-      // -----------------------------
+      // Render bank-level override checkboxes if warnings exist
+      if (bankWarnings) { renderOverrideCheckboxes(); }
+      
+      // Stop timer and compute average time per manually-entered bank
       const totalSec = stopTimer();
       let nBanksManual = statements.filter(st => !st.prepopulated).length;
       if (nBanksManual < 1) { nBanksManual = 1; }
       const timePerBank = (totalSec / 60) / nBanksManual;
+      
+      // Build combined error message
+      let combinedHTML = "";
+      if (bankWarnings) {
+        combinedHTML += `<strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>${bankWarnings}<br/>`;
+      }
+      combinedHTML += `<div id="timerOverridePlaceholder"></div>`;
+      document.getElementById("errorContainer").innerHTML = combinedHTML;
+      
+      // Render timer override box
       renderTimerOverrideBox(timePerBank);
+      
+      // Check if all overrides are acknowledged
       const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
-      if (!(bankOverridesOk && timerOverrideAcknowledged)) { return; }
+      if (!(bankOverridesOk && timerOverrideAcknowledged)) {
+        const processBtn = document.getElementById("processDataBtn");
+        processBtn.disabled = true;
+        processBtn.style.backgroundColor = "red";
+        return;
+      }
       
       localStorage.setItem("affordabilityPage1Time", String(totalSec));
       window.location.href = 'affordability-summary.html';
@@ -607,16 +600,17 @@
     <div id="bankStatements" class="mt-2"></div>
     <div id="statementForm"></div>
     
-    <!-- Error / Warning Container (includes timer override box if applicable) -->
+    <!-- Error / Warning Container (for bank warnings and timer override) -->
     <div id="errorContainer"></div>
     
-    <!-- Process Data Button (full width) -->
+    <!-- Process Data Button -->
     <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full" disabled onclick="processFinalData()">
       Process Data
     </button>
   </div>
 </body>
 </html>
+
 
 
 
