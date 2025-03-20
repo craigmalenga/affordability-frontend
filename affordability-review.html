@@ -24,15 +24,19 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
+    /* Ensuring consistent gap below error container */
+    #errorContainer {
+      margin-bottom: 20px;
+    }
   </style>
   
   <script>
     /*************************************
-     * Timer Configuration (can be moved to timerConfig.js)
+     * Timer Configuration (can be moved to a separate file)
      *************************************/
     const TIMER_CONFIG = {
-      minTime: 15,  // minimum expected minutes per bank
-      maxTime: 30,  // maximum expected minutes per bank
+      minTime: 15,  // minutes: lower limit
+      maxTime: 30,  // minutes: upper limit
       warningMessageLow: "Time per Bank Account to review and categorise data was only {time} minutes per bank – are you sure you reviewed everything carefully?",
       warningMessageHigh: "Time per Bank Account to review and categorise data was {time} minutes per bank – this is taking longer than the recommended range of 15 to 30 minutes per bank – please discuss any training requirements with your line manager",
       normalMessage: "Time per Bank Account in the expected range of between 15 to 30 minutes to review and categorise",
@@ -251,7 +255,6 @@
         months.forEach((_, monthIndex) => {
           const rawVal = statement.data[`${rowIndex}_${monthIndex}`] || 0;
           const displayVal = formatNumericValue(rawVal);
-          // Add "text-right" class to right-justify the input
           table += `
             <td class='border p-2'>
               <input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}' class='border p-2 w-full rounded-md text-right' value="${displayVal}" onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})">
@@ -344,6 +347,7 @@
     function checkAllOverrides() {
       const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
       const allOk = bankOverridesOk && timerOverrideAcknowledged;
+      updateBankOverrideMessage();
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = !allOk;
       processBtn.style.backgroundColor = allOk ? "green" : "red";
@@ -376,6 +380,17 @@
         }
       });
     }
+    function updateBankOverrideMessage() {
+      const bankWarningsDiv = document.getElementById("bankWarningsDiv");
+      if (bankWarningsDiv && (overrides.length === statements.length && overrides.every(val => val))) {
+        if (!bankWarningsDiv.querySelector(".override-confirmation")) {
+          const msg = document.createElement("div");
+          msg.classList.add("override-confirmation", "mt-2", "font-bold");
+          msg.innerText = "User has elected to proceed despite these warnings";
+          bankWarningsDiv.appendChild(msg);
+        }
+      }
+    }
     function removeOverrideCheckboxes() {
       statements.forEach((_, idx) => {
         const cb = document.getElementById("override_" + idx);
@@ -386,7 +401,7 @@
     }
 
     /*************************************
-     * Render Timer Override Box
+     * Render Timer Override Box Function
      *************************************/
     function renderTimerOverrideBox(timePerBank) {
       const container = document.getElementById("errorContainer");
@@ -394,8 +409,7 @@
       if (!timerDiv) {
         timerDiv = document.createElement("div");
         timerDiv.id = "timerOverrideDiv";
-        // Make sure this div is full width (same as Process Data button)
-        timerDiv.classList.add("w-full", "mt-4", "p-4");
+        timerDiv.classList.add("w-full", "mt-2", "p-4");
         container.appendChild(timerDiv);
       }
       let message, overrideText, bgColor;
@@ -474,24 +488,24 @@
         }
       }
       
-      // Render bank-level warnings in a red box if any warnings exist
       let combinedHTML = "";
       if (bankWarnings) {
-        combinedHTML += `<div class="border border-red-400 bg-red-100 text-red-700 px-4 py-3 rounded relative w-full">
+        // Wrap bank warnings in a red box with an id so we can later append the confirmation message.
+        combinedHTML += `<div id="bankWarningsDiv" class="border border-red-400 bg-red-100 text-red-700 px-4 py-3 rounded relative w-full" style="margin-bottom:20px;">
                            <strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>
                            ${bankWarnings}
-                         </div><br/>`;
+                         </div>`;
         renderOverrideCheckboxes();
       }
       
-      // Stop timer and compute average time per manually-entered bank
+      // Stop timer and calculate average time per manually-entered bank
       const totalSec = stopTimer();
       let nBanksManual = statements.filter(st => !st.prepopulated).length;
       if (nBanksManual < 1) { nBanksManual = 1; }
       const timePerBank = (totalSec / 60) / nBanksManual;
       
-      // Append timer override box (it will be full width as well)
-      combinedHTML += `<div id="timerOverridePlaceholder"></div>`;
+      // Append timer override box with a 20px gap
+      combinedHTML += `<div id="timerOverridePlaceholder" style="margin-top:20px;"></div>`;
       document.getElementById("errorContainer").innerHTML = combinedHTML;
       
       renderTimerOverrideBox(timePerBank);
