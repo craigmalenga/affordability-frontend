@@ -213,12 +213,10 @@
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
       const inputValue = document.getElementById(inputId).value;
       statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = inputValue;
-      // Mark as entered and check if all statements are processed
-      statements[statementIndex].entered = true;
-      checkProcessButton();
+      // Removed auto-marking as entered to ensure the bank is only marked as processed upon data submission via summarizeData()
     }
 
-    // Enable the "Process Data" button only when all statements have been processed
+    // Enable the "Process Data" button only when all statements have been processed (i.e. submitted via the summary button)
     function checkProcessButton() {
       const allEntered = statements.every(statement => statement.entered);
       const processBtn = document.getElementById("processDataBtn");
@@ -273,6 +271,7 @@
       tickSpan.innerText = "✔";
       tickSpan.style.color = "green";
       
+      // Mark this statement as processed only after clicking the summary button
       statements[statementIndex].entered = true;
       checkProcessButton();
     }
@@ -343,17 +342,17 @@
     <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
     <label class="block mt-2">Full Name:</label>
     <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-    <!-- Display bank names -->
-    <label class="block mt-2">Statement(s) to process:</label>
+    <!-- Updated labels for display fields -->
+    <label class="block mt-2">Bank Accounts to be Considered as part of Assessment</label>
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
-    <!-- Display statement URLs -->
-    <label class="block mt-2">Urls:</label>
-    <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
-    <!-- Period Covered -->
-    <label class="block mt-2">Period Covered:</label>
+    
+    <label class="block mt-2">Period that Bank Statements are to be Considered</label>
     <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-    <!-- Monthly Repayment -->
-    <label class="block mt-2">Monthly Repayment:</label>
+    
+    <label class="block mt-2">Paths to Relevant Bank Statements to be Considered</label>
+    <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
+    
+    <label class="block mt-2">Monthly Repayments that we are Assessing for Affordability</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
     
     <!-- Bank Statements Section -->
@@ -368,4 +367,5 @@
   </div>
 </body>
 </html>
+
 
