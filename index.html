@@ -14,42 +14,45 @@
       margin: 0; 
       padding: 0;
       min-height: 100vh;
-
-      /* Use your GitHub raw URL for the background */
-      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") 
-                  no-repeat center center fixed;
-      background-size: cover; /* Ensures the image always covers the screen */
+      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
+      background-size: cover;
     }
   </style>
 </head>
 <body>
   <!-- Centered container -->
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
-    <!-- Logo (adjust h-16 to h-12 or h-10 for smaller) -->
+    <!-- Logo -->
     <img
       src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true"
       alt="Company Logo"
       class="h-16 w-auto mx-auto mb-4"
     />
 
-    <h1 class="text-2xl font-bold mb-8">Belmond & Co Claims Management</h1>
+    <!-- Main title and subtitle -->
+    <h1 class="text-2xl font-bold mb-2">Belmond & Co Claims Management</h1>
+    <p class="text-2xl font-bold mb-8">Affordability assessment portal</p>
 
-    <!-- Button 1: Upload from SharePoint to AWS -->
-    <button
-      onclick="window.location.href='upload.html'"
-      class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-2"
-    >
-      Upload Statements from SharePoint to AWS
-    </button>
+    <!-- Buttons container -->
+    <div class="flex justify-center gap-4">
+      <!-- Button 1: Upload from SharePoint to AWS -->
+      <button
+        onclick="window.location.href='upload.html'"
+        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-72 text-center"
+      >
+        Upload Statements<br>from SharePoint to AWS
+      </button>
 
-    <!-- Button 2: Affordability Review -->
-    <button
-      onclick="window.location.href='affordability-review.html'"
-      class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-    >
-      Carry out Affordability Assessment on a LeadID
-    </button>
+      <!-- Button 2: Affordability Review -->
+      <button
+        onclick="window.location.href='affordability-review.html'"
+        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-72 text-center"
+      >
+        Carry out Affordability<br>Assessment on a LeadID
+      </button>
+    </div>
   </div>
 </body>
 </html>
+
 
