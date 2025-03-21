@@ -390,7 +390,7 @@
           const displayVal = formatNumericValue(rawVal);
           table += `
             <td class='border p-2'>
-              <input type='number' id='${statementIndex}_${rowIndex}_${monthIndex}'
+              <input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}'
                      class='border p-2 w-full rounded-md text-right'
                      value="${displayVal}"
                      onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})">
@@ -449,7 +449,7 @@
               statements[foundIndex].data[`${row}_${month}`] = val;
               const inputElem = document.getElementById(`${foundIndex}_${row}_${month}`);
               if (inputElem) {
-                inputElem.value = formatNumericValue(val);
+                inputElem.value = val.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               }
             }
           }
