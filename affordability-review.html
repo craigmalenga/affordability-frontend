@@ -148,6 +148,7 @@
     let startTime = null;
     let timerInterval = null;
     let totalTimeSpentSeconds = 0;
+    let finalProcessingInitiated = false; // CHANGE #5: To track if Process Data has been pressed once already
 
     // For final decision
     let finalDecision = "";
@@ -205,7 +206,7 @@
       statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = val;
       inputElem.value = formatNumericValue(val);
 
-      // If user changes data, remove any override for that bank
+      // If user changes data, remove any override for that bank (CHANGE #4)
       const cb = document.getElementById("override_" + statementIndex);
       if (cb && cb.checked) {
         cb.checked = false;
@@ -230,6 +231,7 @@
       overrides = [];
       priorInputData = "";
       timerOverrideAcknowledged = false;
+      finalProcessingInitiated = false; // RESET final processing flag
 
       if (timerInterval) clearInterval(timerInterval);
       startTime = null;
@@ -239,6 +241,7 @@
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = true;
       processBtn.style.backgroundColor = "red";
+      processBtn.innerText = "Process Data"; // Reset button text
     }
 
     /*************************************
@@ -296,7 +299,7 @@
             createStatementLinks();
           }
 
-          // If prior data
+          // If prior data exists, create the Load Prior button
           if (data.inputData && data.inputData.trim() !== "") {
             priorInputData = data.inputData.trim();
             createLoadPriorButton();
@@ -352,6 +355,7 @@
 
     /*************************************
      * Create Load Prior Input Button
+     * CHANGE #1: Adjust text on first press and disable button afterward
      *************************************/
     function createLoadPriorButton() {
       if (document.getElementById("loadPriorBtn")) return;
@@ -409,7 +413,8 @@
       formContainer.innerHTML = table;
     }
 
-    // Called when user clicks "Upload data for this bank"
+    // CHANGE #3: Called when user clicks "Upload data for this bank"
+    // Remove any existing "Submit despite warning" checkbox if present.
     function uploadBankData(statementIndex) {
       statements[statementIndex].entered = true;
       const btnContainer = document.querySelectorAll("#bankStatements .btn-container")[statementIndex];
@@ -419,49 +424,68 @@
       const tickSpan = document.getElementById("tick_" + statementIndex);
       tickSpan.innerText = "✔";
       tickSpan.style.color = "green";
+      
+      // Remove existing override checkbox and label if they exist
+      const existingOverride = document.getElementById("override_" + statementIndex);
+      if (existingOverride) {
+        const label = existingOverride.nextElementSibling;
+        existingOverride.remove();
+        if (label) label.remove();
+      }
+      
       checkProcessButton();
     }
 
     /*************************************
      * Load Prior Input Data
+     * CHANGE #1: On first press, load data then update button text, disable it, and change color to blue.
      *************************************/
     function loadPriorInputData() {
       if (!priorInputData) {
         showAlert("No prior input data available.");
         return;
       }
-      const fields = priorInputData.split(",").map(f => f.trim());
-      const groupSize = 19; // 1 bank name + (6 categories * 3 months) = 19
+      const loadPriorBtn = document.getElementById("loadPriorBtn");
+      // Only execute if button is not already disabled
+      if (!loadPriorBtn.disabled) {
+        const fields = priorInputData.split(",").map(f => f.trim());
+        const groupSize = 19; // 1 bank name + (6 categories * 3 months) = 19
 
-      for (let i = 0; i < fields.length; i += groupSize) {
-        const group = fields.slice(i, i + groupSize);
-        if (group.length < groupSize) continue;
+        for (let i = 0; i < fields.length; i += groupSize) {
+          const group = fields.slice(i, i + groupSize);
+          if (group.length < groupSize) continue;
 
-        const bankNameFromData = group[0];
-        const foundIndex = statements.findIndex(s => s.bank.toLowerCase() === bankNameFromData.toLowerCase());
-        if (foundIndex !== -1) {
-          statements[foundIndex].prepopulated = true;
-          for (let row = 0; row < categories.length; row++) {
-            for (let month = 0; month < 3; month++) {
-              const fieldIndex = 1 + (row * 3) + month;
-              let val = parseFloat(group[fieldIndex].replace(/,/g, ''));
-              if (isNaN(val)) val = 0;
-              statements[foundIndex].data[`${row}_${month}`] = val;
-              const inputElem = document.getElementById(`${foundIndex}_${row}_${month}`);
-              if (inputElem) {
-                inputElem.value = val.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const bankNameFromData = group[0];
+          const foundIndex = statements.findIndex(s => s.bank.toLowerCase() === bankNameFromData.toLowerCase());
+          if (foundIndex !== -1) {
+            statements[foundIndex].prepopulated = true;
+            for (let row = 0; row < categories.length; row++) {
+              for (let month = 0; month < 3; month++) {
+                const fieldIndex = 1 + (row * 3) + month;
+                let val = parseFloat(group[fieldIndex].replace(/,/g, ''));
+                if (isNaN(val)) val = 0;
+                statements[foundIndex].data[`${row}_${month}`] = val;
+                const inputElem = document.getElementById(`${foundIndex}_${row}_${month}`);
+                if (inputElem) {
+                  inputElem.value = val.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
               }
             }
-          }
-          const btn = document.getElementById(`enterDataBtn_${foundIndex}`);
-          if (btn) {
-            btn.innerText = "Review Data";
-            btn.classList.remove("bg-blue-600", "text-white");
-            btn.classList.add("bg-yellow-400", "text-white");
+            const btn = document.getElementById(`enterDataBtn_${foundIndex}`);
+            if (btn) {
+              btn.innerText = "Review Data";
+              btn.classList.remove("bg-blue-600", "text-white");
+              btn.classList.add("bg-yellow-400", "text-white");
+            }
           }
         }
+        // Update button text, disable it and change color to blue (CHANGE #1)
+        loadPriorBtn.innerText = "Data has been loaded to bank data as relevant. If you want to reload, please start again and Fetch Data for this Lead ID again";
+        loadPriorBtn.disabled = true;
+        loadPriorBtn.classList.remove("bg-green-600");
+        loadPriorBtn.classList.add("bg-blue-600");
+        showAlert("Prior input data loaded for matching bank accounts.");
       }
-      showAlert("Prior input data loaded for matching bank accounts.");
     }
 
     /*************************************
@@ -541,7 +565,7 @@
         container.appendChild(timerDiv);
       }
 
-      // Read config
+      // Read config values
       const minTime = TIMER_CONFIG.base_lower_limit || 15;
       const maxTime = TIMER_CONFIG.base_upper_limit || 30;
       const warningLow = TIMER_CONFIG.warning_message_low || "Time too low: {time}";
@@ -582,18 +606,29 @@
 
     /*************************************
      * Final Decision Flow
+     * CHANGE #5: Process Data button behavior (requires a second press if warnings exist)
      *************************************/
     function processFinalData() {
-      document.getElementById("errorContainer").innerHTML = "";
-
       // Only proceed if all banks are entered
       if (!statements.every(st => st.entered)) return;
 
-      // 1) Clear any previous summary/decision
-      document.getElementById("statementForm").innerHTML = "";
+      // If bank warnings exist and this is the first press, change button to require confirmation
+      if (!finalProcessingInitiated && document.getElementById("bankWarningsDiv") && document.getElementById("bankWarningsDiv").innerHTML !== "") {
+        finalProcessingInitiated = true;
+        const processBtn = document.getElementById("processDataBtn");
+        processBtn.innerText = "Confirm and Show Final Decision";
+        processBtn.style.backgroundColor = "blue";
+        return; // Wait for second press
+      }
 
-      // 2) Evaluate data warnings, time override, etc. and then show final summary + decision
+      // Otherwise, show final summary and decision
+      // Clear any previous warnings/timer override
+      document.getElementById("errorContainer").innerHTML = "";
+      // Clear any previous summary/decision
+      document.getElementById("statementForm").innerHTML = "";
       showSummaryAndDecision();
+      // Hide Process Data button as it's no longer needed
+      document.getElementById("processDataBtn").style.display = "none";
     }
 
     function showSummaryAndDecision() {
@@ -665,7 +700,7 @@
       if (nBanksManual < 1) nBanksManual = 1;
       const timePerBank = (totalSec / 60) / nBanksManual;
 
-      // 4) If warnings exist, show red box + override
+      // 4) If warnings exist, show red box + override checkboxes (these will now appear above the final summary)
       let warningsHTML = "";
       if (bankWarnings) {
         warningsHTML = `
@@ -689,7 +724,7 @@
         </div>
       `;
 
-      // Insert warnings + time override into errorContainer
+      // Insert warnings and time override into errorContainer (which is now positioned above the final summary)
       document.getElementById("errorContainer").innerHTML = warningsHTML + timeHTML;
       renderTimerOverrideBox(timePerBank);
 
@@ -730,7 +765,7 @@
         </table>
       `;
 
-      // 8) Build final process area
+      // 8) Build final process area (decision submission area)
       let processDecisionHTML = `
         <div class="bg-gray-50 p-4 mt-4 border rounded">
           <h4 class="font-bold mb-2">Process Decision</h4>
@@ -762,7 +797,7 @@
         </div>
       `;
 
-      // 9) Insert final summary + decision + process decision into statementForm
+      // 9) Insert final summary, decision, and process area into statementForm (which now appears below the error container)
       const formDiv = document.getElementById("statementForm");
       formDiv.innerHTML = `
         <div class="bg-white p-4 mt-6 shadow-md">
@@ -806,7 +841,6 @@
      * Final Submit Decision
      *************************************/
     function finalSubmitDecision() {
-      // which radio is selected?
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
       for (let opt of decisionOptions) {
@@ -815,31 +849,24 @@
           break;
         }
       }
-      // read the displayed decision from the blue box
       const decBox = document.querySelector(".decision-box h3");
       if (!decBox) {
         showAlert("No decision box found. Did you process data first?");
         return;
       }
-      const autoDecision = decBox.innerText.split(":")[1].trim(); // e.g. "Affordable"
-
+      const autoDecision = decBox.innerText.split(":")[1].trim();
       let finalDecision = "";
       if (selected === "default") {
         finalDecision = autoDecision;
       } else if (selected === "override") {
-        // toggle for example
         finalDecision = (autoDecision === "Affordable") ? "Unaffordable" : "Affordable";
       } else if (selected === "review") {
         const comment = document.getElementById("reviewComment").value.trim();
         finalDecision = "Review - " + comment;
       }
-      // Build JSON
-      const results = {
-        finalDecision
-      };
+      const results = { finalDecision };
       console.log("Final Submission Decision JSON:", results);
       showAlert("Decision submitted. Check console for JSON output.");
-      // Possibly post to your server here.
     }
 
     /*************************************
@@ -942,10 +969,12 @@
     <!-- Bank Statements -->
     <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
     <div id="bankStatements" class="mt-2"></div>
-    <div id="statementForm"></div>
 
-    <!-- Error Container for Warnings & Time override -->
+    <!-- Error Container for Warnings & Timer Override (moved above the final summary as per CHANGE #2) -->
     <div id="errorContainer"></div>
+
+    <!-- Statement Form (final summary and decision will be inserted here) -->
+    <div id="statementForm"></div>
 
     <!-- Process Data Button -->
     <button id="processDataBtn"
