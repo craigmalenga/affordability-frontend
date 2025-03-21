@@ -4,21 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Affordability Assessment</title>
-
   <!-- Favicon snippets -->
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
-
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Add html2canvas and jsPDF libraries for screenshot capture and PDF generation -->
+  <!-- html2canvas and jsPDF libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
   <style>
     body {
       margin: 0;
@@ -30,10 +26,7 @@
     #errorContainer, #bankWarningsDiv, #timerOverrideDiv {
       width: 100%;
     }
-    #errorContainer {
-      margin-bottom: 20px;
-    }
-    /* Uniform box widths for red/yellow/blue boxes */
+    #errorContainer { margin-bottom: 20px; }
     .warning-box, .time-box, .decision-box {
       width: 100%;
       margin-top: 1rem;
@@ -45,25 +38,9 @@
       font-weight: bold;
       margin-bottom: 0.5rem;
     }
-    /* Red box for data warnings */
-    .warning-box {
-      border: 1px solid #f87171;
-      background-color: #fef2f2;
-      color: #b91c1c;
-    }
-    /* Yellow box for time override */
-    .time-box {
-      border: 1px solid #facc15;
-      background-color: #fefce8;
-      color: #b45309;
-    }
-    /* Blue box for final decision */
-    .decision-box {
-      border: 1px solid #3b82f6;
-      background-color: #dbeafe;
-      color: #1e3a8a;
-    }
-    /* Centered modal for alerts with an OK button */
+    .warning-box { border: 1px solid #f87171; background-color: #fef2f2; color: #b91c1c; }
+    .time-box { border: 1px solid #facc15; background-color: #fefce8; color: #b45309; }
+    .decision-box { border: 1px solid #3b82f6; background-color: #dbeafe; color: #1e3a8a; }
     #alertOverlay {
       display: none;
       position: fixed;
@@ -84,9 +61,7 @@
       padding: 20px;
       z-index: 1000;
     }
-    #alertMessage {
-      margin-bottom: 1rem;
-    }
+    #alertMessage { margin-bottom: 1rem; }
     #alertButton {
       background: #3490dc;
       color: #fff;
@@ -95,25 +70,17 @@
       border-radius: 4px;
       cursor: pointer;
     }
-    #alertButton:hover {
-      background: #2779bd;
-    }
-    /* Summary table styling */
+    #alertButton:hover { background: #2779bd; }
     .summary-table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 1rem;
     }
-    .summary-table th,
-    .summary-table td {
+    .summary-table th, .summary-table td {
       border: 1px solid #ccc;
       padding: 8px;
     }
-    .summary-table th {
-      background-color: #f9f9f9;
-      text-align: left;
-    }
-    /* Debug output area */
+    .summary-table th { background-color: #f9f9f9; text-align: left; }
     #debugOutput {
       margin-top: 1rem;
       padding: 8px;
@@ -126,7 +93,6 @@
       overflow-y: auto;
     }
   </style>
-
   <script>
     /*************************************
      * Debug Logging Utility
@@ -134,15 +100,11 @@
     function debugLog(msg) {
       console.debug(msg);
       const debugOutput = document.getElementById("debugOutput");
-      if (debugOutput) {
-        debugOutput.innerText += msg + "\n";
-      }
+      if (debugOutput) { debugOutput.innerText += msg + "\n"; }
     }
-
     /*************************************
-     * Utility Functions for Screenshot PDF & S3 Upload
+     * Screenshot PDF & Secure S3 Upload Functions
      *************************************/
-    // Capture the entire window and convert to a PDF blob
     function captureScreenshotPDF() {
       debugLog("DEBUG: Starting screenshot capture using html2canvas.");
       return html2canvas(document.body).then(canvas => {
@@ -158,8 +120,6 @@
         return pdf.output('blob');
       });
     }
-
-    // Generate filename based on Lead ID, a random 9-digit number and current date (ddMMMyy)
     function generateFilename(leadId) {
       const randomNum = Math.floor(100000000 + Math.random() * 900000000);
       const now = new Date();
@@ -171,50 +131,41 @@
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
-
-    // Upload the PDF blob to S3 and return the public URL.
-    // NOTE: In production you would request a signed URL from your backend instead.
-    function uploadScreenshot(pdfBlob, filename) {
-      const s3Url = `https://affordability-screenshots-belmond.s3.amazonaws.com/${filename}`;
-      debugLog("DEBUG: Starting S3 upload to URL: " + s3Url);
-      return fetch(s3Url, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/pdf' },
-        body: pdfBlob
-      }).then(resp => {
-        if (resp.ok) {
-          debugLog("DEBUG: S3 upload succeeded.");
-          return s3Url;
-        } else {
-          debugLog("DEBUG: S3 upload failed with status " + resp.status);
-          throw new Error('S3 Upload failed');
+    // New secure upload: Get a presigned URL from backend and then PUT the PDF blob
+    function uploadScreenshotSecure(pdfBlob, filename) {
+      return fetch(`/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
+      .then(resp => resp.json())
+      .then(data => {
+        if(data.error) {
+          throw new Error(data.error);
         }
+        const presignedUrl = data.presigned_url;
+        const publicUrl = data.public_url;
+        debugLog("DEBUG: Obtained presigned URL: " + presignedUrl);
+        return fetch(presignedUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "application/pdf" },
+          body: pdfBlob
+        }).then(uploadResp => {
+          if (uploadResp.ok) {
+            debugLog("DEBUG: S3 upload succeeded.");
+            return publicUrl;
+          } else {
+            debugLog("DEBUG: S3 upload failed with status " + uploadResp.status);
+            throw new Error("S3 Upload failed");
+          }
+        });
       });
     }
-
     /*************************************
-     * Load Timer Configuration
+     * Timer Configuration and Global Variables
      *************************************/
     let TIMER_CONFIG = {};
     fetch('./timer_config.json')
       .then(resp => resp.json())
       .then(cfg => { TIMER_CONFIG = cfg; })
-      .catch(err => {
-        console.error("Failed to load timer_config.json:", err);
-        showAlert("Critical error: Timer configuration file could not be loaded.");
-      });
-
-    /*************************************
-     * Global Variables
-     *************************************/
-    const categories = [
-      "Income",
-      "Rent/Mortgage",
-      "Council Tax",
-      "Utilities",
-      "Credit Commitments",
-      "Gambling Expenditure"
-    ];
+      .catch(err => { console.error("Failed to load timer_config.json:", err); showAlert("Critical error: Timer configuration file could not be loaded."); });
+    const categories = ["Income", "Rent/Mortgage", "Council Tax", "Utilities", "Credit Commitments", "Gambling Expenditure"];
     let dynamicMonths = [];
     let statements = [];
     let priorInputData = "";
@@ -225,7 +176,6 @@
     let totalTimeSpentSeconds = 0;
     let finalProcessingInitiated = false;
     let finalDecision = "";
-
     /*************************************
      * Centered Alert Functions
      *************************************/
@@ -238,7 +188,6 @@
       document.getElementById("alertOverlay").style.display = "none";
       document.getElementById("alertBox").style.display = "none";
     }
-
     /*************************************
      * Timer Functions
      *************************************/
@@ -260,14 +209,12 @@
       totalTimeSpentSeconds = Math.floor((new Date() - startTime) / 1000);
       return totalTimeSpentSeconds;
     }
-
     /*************************************
      * Numeric Formatting
      *************************************/
     function formatNumericValue(num) {
       return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
     /*************************************
      * Save Data
      *************************************/
@@ -285,7 +232,6 @@
         checkAllOverrides();
       }
     }
-
     /*************************************
      * Reset Form
      *************************************/
@@ -312,7 +258,6 @@
       processBtn.style.backgroundColor = "red";
       processBtn.innerText = "Process Data";
     }
-
     /*************************************
      * Fetch Lead Data
      *************************************/
@@ -373,7 +318,6 @@
           showAlert("Unable to retrieve data – check Lead ID being entered and if issue persists, speak to a line manager");
         });
     }
-
     /*************************************
      * Create Statement Links
      *************************************/
@@ -387,10 +331,7 @@
         viewLink.href = statement.file;
         viewLink.innerText = `View ${statement.bank} statement`;
         viewLink.classList.add("text-blue-500", "underline", "cursor-pointer");
-        viewLink.onclick = (e) => {
-          e.preventDefault();
-          window.open(statement.file, "_blank");
-        };
+        viewLink.onclick = (e) => { e.preventDefault(); window.open(statement.file, "_blank"); };
         const btnContainer = document.createElement("div");
         btnContainer.classList.add("btn-container", "ml-4", "mt-2", "flex", "items-center");
         const enterDataBtn = document.createElement("button");
@@ -409,7 +350,6 @@
         pdfContainer.appendChild(container);
       });
     }
-
     /*************************************
      * Create Load Prior Input Button
      *************************************/
@@ -426,7 +366,6 @@
       loadPriorBtnContainer.appendChild(loadPriorBtn);
       bankStatementsDiv.appendChild(loadPriorBtnContainer);
     }
-
     /*************************************
      * Load Statement Form
      *************************************/
@@ -443,8 +382,7 @@
         months.forEach((_, monthIndex) => {
           const rawVal = statement.data[`${rowIndex}_${monthIndex}`] || 0;
           const displayVal = formatNumericValue(rawVal);
-          table += `
-            <td class='border p-2'>
+          table += `<td class='border p-2'>
               <input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}'
                      class='border p-2 w-full rounded-md text-right'
                      value="${displayVal}"
@@ -454,15 +392,12 @@
         table += "</tr>";
       });
       table += "</table>";
-      table += `
-        <button onclick='uploadBankData(${statementIndex})'
+      table += `<button onclick='uploadBankData(${statementIndex})'
                 class='mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-full'>
           Upload data for this bank to summary before processing
-        </button>
-      `;
+        </button>`;
       formContainer.innerHTML = table;
     }
-
     function uploadBankData(statementIndex) {
       statements[statementIndex].entered = true;
       const btnContainer = document.querySelectorAll("#bankStatements .btn-container")[statementIndex];
@@ -480,7 +415,6 @@
       }
       checkProcessButton();
     }
-
     /*************************************
      * Load Prior Input Data
      *************************************/
@@ -527,7 +461,6 @@
         showAlert("Prior input data loaded for matching bank accounts.");
       }
     }
-
     /*************************************
      * Check Process Button
      *************************************/
@@ -537,7 +470,6 @@
       processBtn.disabled = !allEntered;
       processBtn.style.backgroundColor = allEntered ? "green" : "red";
     }
-
     /*************************************
      * Override Check Functions
      *************************************/
@@ -564,7 +496,6 @@
         }
       }
     }
-
     function renderOverrideCheckboxes() {
       overrides = new Array(statements.length).fill(false);
       statements.forEach((_, idx) => {
@@ -580,10 +511,7 @@
           cb.type = "checkbox";
           cb.id = "override_" + idx;
           cb.classList.add("ml-2");
-          cb.addEventListener("change", () => {
-            overrides[idx] = cb.checked;
-            checkAllOverrides();
-          });
+          cb.addEventListener("change", () => { overrides[idx] = cb.checked; checkAllOverrides(); });
           btnContainer.appendChild(cb);
           const label = document.createElement("label");
           label.setAttribute("for", "override_" + idx);
@@ -593,7 +521,6 @@
         }
       });
     }
-
     function updateBankOverrideMessage() {
       const bankWarningsDiv = document.getElementById("bankWarningsDiv");
       if (bankWarningsDiv && (overrides.length === statements.length && overrides.every(val => val))) {
@@ -605,7 +532,6 @@
         }
       }
     }
-
     /*************************************
      * Render Timer Override Box
      *************************************/
@@ -645,12 +571,8 @@
           <label for="timerOverrideCheckbox">${overrideText}</label>
         </div>
       `;
-      document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => {
-        timerOverrideAcknowledged = e.target.checked;
-        checkAllOverrides();
-      });
+      document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => { timerOverrideAcknowledged = e.target.checked; checkAllOverrides(); });
     }
-
     /*************************************
      * Process Data (Final Summary)
      *************************************/
@@ -668,7 +590,6 @@
       showSummaryAndDecision();
       document.getElementById("processDataBtn").style.display = "none";
     }
-
     function showSummaryAndDecision() {
       const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
@@ -677,9 +598,7 @@
         for (let m = 0; m < nMonths; m++) {
           totalIncome += (st.data[`0_${m}`] || 0);
           let exp = 0;
-          for (let r = 1; r <= 4; r++) {
-            exp += (st.data[`${r}_${m}`] || 0);
-          }
+          for (let r = 1; r <= 4; r++) { exp += (st.data[`${r}_${m}`] || 0); }
           totalExpenses += exp;
           totalGambling += (st.data[`5_${m}`] || 0);
         }
@@ -701,17 +620,13 @@
         for (let m = 0; m < nMonths; m++) {
           sumIncomeArr[m] += (st.data[`0_${m}`] || 0);
           let e = 0;
-          for (let r = 1; r <= 4; r++) {
-            e += (st.data[`${r}_${m}`] || 0);
-          }
+          for (let r = 1; r <= 4; r++) { e += (st.data[`${r}_${m}`] || 0); }
           sumExpensesArr[m] += e;
         }
       });
       let problemMonths = [];
       for (let i = 0; i < nMonths; i++) {
-        if (sumExpensesArr[i] > sumIncomeArr[i]) {
-          problemMonths.push(dynamicMonths[i]);
-        }
+        if (sumExpensesArr[i] > sumIncomeArr[i]) { problemMonths.push(dynamicMonths[i]); }
         if (sumIncomeArr[i] === 0 && sumExpensesArr[i] === 0) {
           bankWarnings += `No income or expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
         } else if (sumIncomeArr[i] === 0) {
@@ -733,47 +648,32 @@
       const timePerBank = (totalSec / 60) / nBanksManual;
       let warningsHTML = "";
       if (bankWarnings) {
-        warningsHTML = `
-          <div id="bankWarningsDiv" class="warning-box">
+        warningsHTML = `<div id="bankWarningsDiv" class="warning-box">
             <h3>Please review your entries:</h3>
             <p>${bankWarnings}</p>
-          </div>
-        `;
+          </div>`;
         renderOverrideCheckboxes();
       }
-      let timeHTML = `
-        <div id="timerOverrideDiv" class="time-box">
+      let timeHTML = `<div id="timerOverrideDiv" class="time-box">
           <h3>Information on time you've taken to process this data:</h3>
           <p></p>
           <div class="mt-2">
             <input type="checkbox" id="timerOverrideCheckbox" class="mr-2" />
             <label for="timerOverrideCheckbox">[Will be filled dynamically]</label>
           </div>
-        </div>
-      `;
+        </div>`;
       document.getElementById("errorContainer").innerHTML = warningsHTML + timeHTML;
       renderTimerOverrideBox(timePerBank);
       let decision = "";
       let reason = "";
-      if (gambPctIncome > 15) {
-        decision = "Unaffordable";
-        reason = "Gambling exceeds 15% of income, indicating financial risk.";
-      } else if (gambPctIncome >= 10 && gambPctIncome <= 14 && loanRepayPct > 50) {
-        decision = "Unaffordable";
-        reason = "Gambling between 10–14% and repayment exceeds 50% of disposable income.";
-      } else if (gambPctIncome < 10 && loanRepayPct > 65) {
-        decision = "Unaffordable";
-        reason = "Gambling is below 10%, but repayment cost is over 65% of disposable income.";
-      } else {
-        decision = "Affordability";
-        reason = "Neither gambling nor repayment costs indicate financial distress.";
-      }
-      let decisionHTML = `
-        <div class="decision-box mt-4">
+      if (gambPctIncome > 15) { decision = "Unaffordable"; reason = "Gambling exceeds 15% of income, indicating financial risk."; }
+      else if (gambPctIncome >= 10 && gambPctIncome <= 14 && loanRepayPct > 50) { decision = "Unaffordable"; reason = "Gambling between 10–14% and repayment exceeds 50% of disposable income."; }
+      else if (gambPctIncome < 10 && loanRepayPct > 65) { decision = "Unaffordable"; reason = "Gambling is below 10%, but repayment cost is over 65% of disposable income."; }
+      else { decision = "Affordability"; reason = "Neither gambling nor repayment costs indicate financial distress."; }
+      let decisionHTML = `<div class="decision-box mt-4">
           <h3>Decision: ${decision}</h3>
           <p>${reason}</p>
-        </div>
-      `;
+        </div>`;
       const dispAvgIncome = `£${formatNumericValue(avgIncome)}`;
       const dispAvgExpenses = `£${formatNumericValue(avgExpenses)}`;
       const dispAvgGambling = `£${formatNumericValue(avgGambling)}`;
@@ -781,8 +681,7 @@
       const dispGambPctIncome = `${Math.round(gambPctIncome)}%`;
       const dispGambPctDisposable = `${Math.round(gambPctDisposable)}%`;
       const dispLoanRepayPct = `${Math.round(loanRepayPct)}%`;
-      let summaryHTML = `
-        <table class="summary-table">
+      let summaryHTML = `<table class="summary-table">
           <tr><th>Average Income</th><td style="text-align:right;">${dispAvgIncome} per month</td></tr>
           <tr><th>Average Expenses (excl. gambling)</th><td style="text-align:right;">${dispAvgExpenses} per month</td></tr>
           <tr><th>Average Gambling</th><td style="text-align:right;">${dispAvgGambling} per month</td></tr>
@@ -790,10 +689,8 @@
           <tr><th>Gambling as % of Income</th><td style="text-align:right;">${dispGambPctIncome}</td></tr>
           <tr><th>Gambling as % of Disposable Income</th><td style="text-align:right;">${dispGambPctDisposable}</td></tr>
           <tr><th>Loan Repayments as % of Disposable Income</th><td style="text-align:right;">${dispLoanRepayPct}</td></tr>
-        </table>
-      `;
-      let processDecisionHTML = `
-        <div class="bg-gray-50 p-4 mt-4 border rounded">
+        </table>`;
+      let processDecisionHTML = `<div class="bg-gray-50 p-4 mt-4 border rounded">
           <h4 class="font-bold mb-2">Process Decision</h4>
           <div class="mb-2">
             <label class="inline-flex items-center">
@@ -814,19 +711,15 @@
           <button id="finalSubmitBtn" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md w-full" disabled onclick="finalSubmitDecision()">
             Submit Decision
           </button>
-        </div>
-      `;
+        </div>`;
       const formDiv = document.getElementById("statementForm");
-      formDiv.innerHTML = `
-        <div class="bg-white p-4 mt-6 shadow-md">
+      formDiv.innerHTML = `<div class="bg-white p-4 mt-6 shadow-md">
           <h3 class="text-xl font-bold mb-4">Calculated Averages and Analysis</h3>
           ${summaryHTML}
         </div>
         ${decisionHTML}
-        ${processDecisionHTML}
-      `;
+        ${processDecisionHTML}`;
     }
-
     /*************************************
      * Decision Option Checks
      *************************************/
@@ -834,10 +727,7 @@
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
       for (let opt of decisionOptions) {
-        if (opt.checked) {
-          selected = opt.value;
-          break;
-        }
+        if (opt.checked) { selected = opt.value; break; }
       }
       const reviewContainer = document.getElementById("reviewCommentContainer");
       const finalSubmitBtn = document.getElementById("finalSubmitBtn");
@@ -852,7 +742,6 @@
       }
       checkAllOverrides();
     }
-
     /*************************************
      * Build data6 and data7
      *************************************/
@@ -869,12 +758,7 @@
       });
       return arr.join(",");
     }
-
-    function buildAffordabilityOutput(
-      avgInc, avgExp, avgGamb, avgDisp,
-      pctInc, pctDisp, pctLoan,
-      finalDecision, finalReason, timeMin
-    ) {
+    function buildAffordabilityOutput(avgInc, avgExp, avgGamb, avgDisp, pctInc, pctDisp, pctLoan, finalDecision, finalReason, timeMin) {
       const fmtNum = (val) => val.toFixed(2);
       const fmtPct = (val) => (val).toFixed(0) + "%";
       let items = [];
@@ -890,33 +774,27 @@
       items.push(Math.round(timeMin));
       return items.join(",");
     }
-
     /*************************************
-     * Final Submit Decision with S3 Upload
+     * Final Submit Decision with Secure S3 Upload
      *************************************/
     function finalSubmitDecision() {
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
       for (let opt of decisionOptions) {
-        if (opt.checked) {
-          selected = opt.value;
-          break;
-        }
+        if (opt.checked) { selected = opt.value; break; }
       }
       const decBox = document.querySelector(".decision-box h3");
       if (!decBox) {
         showAlert("No decision box found. Did you process data first?");
         return;
       }
-      const autoDecision = decBox.innerText.split(":")[1].trim(); 
+      const autoDecision = decBox.innerText.split(":")[1].trim();
       const decParagraph = document.querySelector(".decision-box p");
       let autoReason = decParagraph ? decParagraph.innerText.trim() : "";
       let finalDecision = "";
       let finalReason = "";
-      if (selected === "default") {
-        finalDecision = autoDecision;
-        finalReason = autoReason;
-      } else if (selected === "review") {
+      if (selected === "default") { finalDecision = autoDecision; finalReason = autoReason; }
+      else if (selected === "review") {
         let comment = document.getElementById("reviewComment").value.trim();
         comment = comment.replace(/,/g, "");
         finalDecision = "Revisit - " + comment;
@@ -929,16 +807,14 @@
         for (let m = 0; m < nMonths; m++) {
           totalIncome += (st.data[`0_${m}`] || 0);
           let exp = 0;
-          for (let r = 1; r <= 4; r++) {
-            exp += (st.data[`${r}_${m}`] || 0);
-          }
+          for (let r = 1; r <= 4; r++) { exp += (st.data[`${r}_${m}`] || 0); }
           totalExpenses += exp;
           totalGambling += (st.data[`5_${m}`] || 0);
         }
       });
-      const avgIncome = (nBanks*nMonths > 0) ? (totalIncome / (nBanks*nMonths)) : 0;
-      const avgExpenses = (nBanks*nMonths > 0) ? (totalExpenses / (nBanks*nMonths)) : 0;
-      const avgGambling = (nBanks*nMonths > 0) ? (totalGambling / (nBanks*nMonths)) : 0;
+      const avgIncome = (nBanks * nMonths > 0) ? (totalIncome / (nBanks * nMonths)) : 0;
+      const avgExpenses = (nBanks * nMonths > 0) ? (totalExpenses / (nBanks * nMonths)) : 0;
+      const avgGambling = (nBanks * nMonths > 0) ? (totalGambling / (nBanks * nMonths)) : 0;
       const avgDisposable = avgIncome - avgExpenses + avgGambling;
       const safeDisposable = (avgDisposable > 0) ? avgDisposable : 0;
       const safeIncome = (avgIncome > 0) ? avgIncome : 0;
@@ -955,17 +831,13 @@
         finalDecision, finalReason, finalMin
       );
       const leadId = document.getElementById("leadId").value.trim();
-
-      // Debug logging for final submission chain
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
       debugLog("DEBUG: Capturing screenshot for FLG update.");
-
-      // Capture screenshot, upload to S3, and then update FLG with the screenshot URL (data9)
       captureScreenshotPDF().then(pdfBlob => {
         debugLog("DEBUG: Screenshot PDF captured.");
         const filename = generateFilename(leadId);
-        debugLog("DEBUG: Uploading screenshot PDF with filename: " + filename);
-        return uploadScreenshot(pdfBlob, filename);
+        debugLog("DEBUG: Requesting presigned URL for filename: " + filename);
+        return uploadScreenshotSecure(pdfBlob, filename);
       }).then(screenshotUrl => {
         debugLog("DEBUG: Screenshot uploaded successfully. URL: " + screenshotUrl);
         debugLog("DEBUG: Posting final decision update to FLG.");
@@ -1001,7 +873,6 @@
         debugLog("DEBUG: Screenshot capture/upload error: " + err.message);
       });
     }
-
     /*************************************
      * Session Check
      *************************************/
@@ -1023,11 +894,8 @@
             fetchDataBtn.style.backgroundColor = "red";
           }
         })
-        .catch(err => {
-          console.error("Error checking session status:", err);
-        });
+        .catch(err => { console.error("Error checking session status:", err); });
     }
-
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
       document.getElementById("timerDisplay").innerText = "Timer: 0:00:00";
@@ -1065,8 +933,7 @@
     <!-- Lead ID -->
     <label for="leadId" class="block mt-4 font-medium">Enter Lead ID:</label>
     <div class="flex gap-2 mt-2">
-      <input type="text" id="leadId" placeholder="123456789"
-             class="border p-2 flex-1 rounded-md text-gray-600"/>
+      <input type="text" id="leadId" placeholder="123456789" class="border p-2 flex-1 rounded-md text-gray-600"/>
       <button id="fetchDataBtn" onclick="fetchLeadData()"
               class="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-blue-700" disabled>
         Fetch Data
