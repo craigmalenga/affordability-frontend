@@ -667,11 +667,11 @@
       const avgGambling = totalGambling / (nBanks * nMonths);
       let avgDisposable = avgIncome - avgExpenses + avgGambling;
 
-      // if it's negative, that's fine for display, but for % calculations we treat <=0 as 0
+      // if negative, it's fine for display, but treat as 0 for % calculations
       const safeDisposable = (avgDisposable > 0) ? avgDisposable : 0;
       const safeIncome = (avgIncome > 0) ? avgIncome : 0;
 
-      // if denominator is zero or negative, set ratio to 0
+      // if denominator is zero or negative, ratio = 0
       const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
       const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
       const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
@@ -713,7 +713,7 @@
         bankWarnings += `Expenses exceed income for months ${problemMonths.join(", ")}.<br/>`;
       }
 
-      // 3) Do NOT stop timer here. Just measure how long so far
+      // 3) measure how long so far
       const totalSec = Math.floor((new Date() - startTime) / 1000);
       let nBanksManual = statements.filter(st => !st.prepopulated).length;
       if (nBanksManual < 1) nBanksManual = 1;
@@ -745,7 +745,7 @@
       document.getElementById("errorContainer").innerHTML = warningsHTML + timeHTML;
       renderTimerOverrideBox(timePerBank);
 
-      // 6) Determine auto-decision
+      // 6) Determine auto-decision & reason
       let decision = "";
       let reason = "";
       if (gambPctIncome > 15) {
@@ -770,7 +770,6 @@
       `;
 
       // 7) Build final summary table
-      // Show numeric with 2 decimals, but % with no decimals in HTML
       const dispAvgIncome = `£${formatNumericValue(avgIncome)}`;
       const dispAvgExpenses = `£${formatNumericValue(avgExpenses)}`;
       const dispAvgGambling = `£${formatNumericValue(avgGambling)}`;
@@ -791,7 +790,7 @@
         </table>
       `;
 
-      // 8) Build final process area (decision submission)
+      // 8) Build final process area (decision submission) - NO override radio
       let processDecisionHTML = `
         <div class="bg-gray-50 p-4 mt-4 border rounded">
           <h4 class="font-bold mb-2">Process Decision</h4>
@@ -799,12 +798,6 @@
             <label class="inline-flex items-center">
               <input type="radio" name="decisionOption" value="default" onchange="checkDecisionOptions()" class="form-radio h-5 w-5 text-green-600">
               <span class="ml-2">Submit in line with decision above</span>
-            </label>
-          </div>
-          <div class="mb-2">
-            <label class="inline-flex items-center">
-              <input type="radio" name="decisionOption" value="override" onchange="checkDecisionOptions()" class="form-radio h-5 w-5 text-green-600">
-              <span class="ml-2">Override and submit as affordable/unaffordable</span>
             </label>
           </div>
           <div class="mb-2">
@@ -866,7 +859,6 @@
     function buildAffordabilityInput() {
       // data6 => CSV with repeated blocks of 19 items:
       // <bankName>, 18 numeric items
-      // (6 categories x 3 months = 18)
       let arr = [];
       statements.forEach(st => {
         // bank name
@@ -882,7 +874,11 @@
       return arr.join(",");
     }
 
-    function buildAffordabilityOutput(avgInc, avgExp, avgGamb, avgDisp, pctInc, pctDisp, pctLoan, decision, reason, timeMin) {
+    function buildAffordabilityOutput(
+      avgInc, avgExp, avgGamb, avgDisp,
+      pctInc, pctDisp, pctLoan,
+      finalDecision, finalReason, timeMin
+    ) {
       // data7 => 10 items:
       // 1) avgInc(####.00)
       // 2) avgExp(####.00)
@@ -891,22 +887,22 @@
       // 5) pctInc(####.00%)
       // 6) pctDisp(####.00%)
       // 7) pctLoan(####.00%)
-      // 8) final decision
-      // 9) final reason
+      // 8) final decision (string)
+      // 9) short reason (or blank)
       // 10) time in minutes (##.00)
-      const fmtNum = (val) => val.toFixed(2);           // e.g. 1234.56
-      const fmtPct = (val) => fmtNum(val) + "%";        // e.g. 50.00%
+      const fmtNum = (val) => val.toFixed(2);
+      const fmtPct = (val) => fmtNum(val) + "%";
       let items = [];
-      items.push(fmtNum(avgInc));
-      items.push(fmtNum(avgExp));
-      items.push(fmtNum(avgGamb));
-      items.push(fmtNum(avgDisp));
-      items.push(fmtPct(pctInc));
-      items.push(fmtPct(pctDisp));
-      items.push(fmtPct(pctLoan));
-      items.push(decision);
-      items.push(reason);
-      items.push(parseFloat(timeMin).toFixed(2)); // e.g. 12.34
+      items.push(fmtNum(avgInc));   // 1
+      items.push(fmtNum(avgExp));   // 2
+      items.push(fmtNum(avgGamb));  // 3
+      items.push(fmtNum(avgDisp));  // 4
+      items.push(fmtPct(pctInc));   // 5
+      items.push(fmtPct(pctDisp));  // 6
+      items.push(fmtPct(pctLoan));  // 7
+      items.push(finalDecision);    // 8
+      items.push(finalReason);      // 9
+      items.push(parseFloat(timeMin).toFixed(2)); // 10
       return items.join(",");
     }
 
@@ -927,24 +923,30 @@
         showAlert("No decision box found. Did you process data first?");
         return;
       }
-      const autoDecision = decBox.innerText.split(":")[1].trim();
+      // e.g. "Decision: Unaffordable"
+      const autoDecision = decBox.innerText.split(":")[1].trim(); 
+      // e.g. "Unaffordable"
+
+      // auto reason is in the paragraph below
+      const decParagraph = document.querySelector(".decision-box p");
+      let autoReason = decParagraph ? decParagraph.innerText.trim() : "";
+
       let finalDecision = "";
       let finalReason = "";
 
       if (selected === "default") {
-        finalDecision = autoDecision;
-        finalReason = "Used system recommended";
-      } else if (selected === "override") {
-        finalDecision = (autoDecision === "Affordable") ? "Unaffordable" : "Affordable";
-        finalReason = "Override from auto decision";
+        // Combine autoDecision + autoReason into one
+        // e.g. "Unaffordable - Gambling exceeds 15%..."
+        finalDecision = autoDecision + " - " + autoReason;
+        finalReason = ""; // or you can store the autoReason here if you prefer
       } else if (selected === "review") {
         const comment = document.getElementById("reviewComment").value.trim();
-        finalDecision = "Review";
-        finalReason = comment || "";
+        // e.g. "Revisit - user comment"
+        finalDecision = "Revisit - " + comment;
+        finalReason = "";
       }
 
-      // Grab the same summary numbers we used in showSummaryAndDecision
-      // We'll re-calc quickly for data7
+      // Recalculate summary for data7
       const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
