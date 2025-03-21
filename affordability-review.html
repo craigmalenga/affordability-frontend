@@ -113,22 +113,48 @@
       background-color: #f9f9f9;
       text-align: left;
     }
+    /* Debug output area */
+    #debugOutput {
+      margin-top: 1rem;
+      padding: 8px;
+      background-color: #fff;
+      border: 1px solid #a0aec0;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
   </style>
 
   <script>
+    /*************************************
+     * Debug Logging Utility
+     *************************************/
+    function debugLog(msg) {
+      console.debug(msg);
+      const debugOutput = document.getElementById("debugOutput");
+      if (debugOutput) {
+        debugOutput.innerText += msg + "\n";
+      }
+    }
+
     /*************************************
      * Utility Functions for Screenshot PDF & S3 Upload
      *************************************/
     // Capture the entire window and convert to a PDF blob
     function captureScreenshotPDF() {
+      debugLog("DEBUG: Starting screenshot capture using html2canvas.");
       return html2canvas(document.body).then(canvas => {
         const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        debugLog("DEBUG: Screenshot captured, converting to PDF.");
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'mm', 'a4');
         const imgProps = pdf.getImageProperties(imgData);
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        debugLog("DEBUG: PDF generated successfully.");
         return pdf.output('blob');
       });
     }
@@ -141,20 +167,28 @@
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const month = monthNames[now.getMonth()];
       const year = now.getFullYear().toString().substr(-2);
-      return `affordability decision screenshot-${leadId}-${randomNum}-${day}${month}${year}.pdf`;
+      const filename = `affordability decision screenshot-${leadId}-${randomNum}-${day}${month}${year}.pdf`;
+      debugLog("DEBUG: Generated filename: " + filename);
+      return filename;
     }
 
     // Upload the PDF blob to S3 and return the public URL.
-    // NOTE: In a production system you would request a signed URL from your backend instead.
+    // NOTE: In production you would request a signed URL from your backend instead.
     function uploadScreenshot(pdfBlob, filename) {
       const s3Url = `https://affordability-screenshots-belmond.s3.amazonaws.com/${filename}`;
+      debugLog("DEBUG: Starting S3 upload to URL: " + s3Url);
       return fetch(s3Url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/pdf' },
         body: pdfBlob
       }).then(resp => {
-        if (resp.ok) return s3Url;
-        else throw new Error('S3 Upload failed');
+        if (resp.ok) {
+          debugLog("DEBUG: S3 upload succeeded.");
+          return s3Url;
+        } else {
+          debugLog("DEBUG: S3 upload failed with status " + resp.status);
+          throw new Error('S3 Upload failed');
+        }
       });
     }
 
@@ -921,11 +955,20 @@
         finalDecision, finalReason, finalMin
       );
       const leadId = document.getElementById("leadId").value.trim();
+
+      // Debug logging for final submission chain
+      debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
+      debugLog("DEBUG: Capturing screenshot for FLG update.");
+
       // Capture screenshot, upload to S3, and then update FLG with the screenshot URL (data9)
       captureScreenshotPDF().then(pdfBlob => {
+        debugLog("DEBUG: Screenshot PDF captured.");
         const filename = generateFilename(leadId);
+        debugLog("DEBUG: Uploading screenshot PDF with filename: " + filename);
         return uploadScreenshot(pdfBlob, filename);
       }).then(screenshotUrl => {
+        debugLog("DEBUG: Screenshot uploaded successfully. URL: " + screenshotUrl);
+        debugLog("DEBUG: Posting final decision update to FLG.");
         fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
           method: "POST",
           credentials: "include",
@@ -941,17 +984,21 @@
         .then(respData => {
           if (respData.error) {
             showAlert("Error updating FLG: " + respData.error);
+            debugLog("DEBUG: FLG update error: " + respData.error);
           } else {
             showAlert("FLG updated successfully!");
+            debugLog("DEBUG: FLG update succeeded.");
           }
         })
         .catch(err => {
           console.error("Error updating FLG:", err);
           showAlert("Error updating FLG. Check console for details.");
+          debugLog("DEBUG: Error updating FLG: " + err.message);
         });
       }).catch(err => {
         console.error("Screenshot or S3 Upload failed:", err);
         showAlert("Screenshot capture or upload failed. Please try again.");
+        debugLog("DEBUG: Screenshot capture/upload error: " + err.message);
       });
     }
 
@@ -1053,6 +1100,8 @@
             onclick="processFinalData()">
       Process Data
     </button>
+    <!-- Debug Output Area -->
+    <div id="debugOutput"></div>
   </div>
 </body>
 </html>
