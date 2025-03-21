@@ -46,7 +46,7 @@
     /* Red box for data warnings */
     .warning-box {
       border: 1px solid #f87171; /* red-400 */
-      background-color: #fef2f2; /* red-50 or so */
+      background-color: #fef2f2; /* red-50 */
       color: #b91c1c; /* red-700 */
     }
     /* Yellow box for time override */
@@ -517,7 +517,6 @@
         }
         const reviewComment = document.getElementById("reviewComment");
         const commentVal = reviewComment ? reviewComment.value.trim() : "";
-        // finalSubmitBtn is disabled if not all overrides checked, or no decision selected, or "review" with empty comment
         if (!allOk || selected === "" || (selected === "review" && !commentVal)) {
           finalSubmitBtn.disabled = true;
         } else {
@@ -596,10 +595,7 @@
         message = warningLow.replace("{time}", timePerBank.toFixed(1));
         overrideText = overrideLow;
       } else if (timePerBank > maxTime) {
-        message = warningHigh
-          .replace("{time}", timePerBank.toFixed(1))
-          .replace("{min}", minTime)
-          .replace("{max}", maxTime);
+        message = warningHigh.replace("{time}", timePerBank.toFixed(1)).replace("{min}", minTime).replace("{max}", maxTime);
         overrideText = overrideHigh;
       } else {
         message = normalMsg.replace("{min}", minTime).replace("{max}", maxTime);
@@ -667,11 +663,9 @@
       const avgGambling = totalGambling / (nBanks * nMonths);
       let avgDisposable = avgIncome - avgExpenses + avgGambling;
 
-      // if negative, it's fine for display, but treat as 0 for % calculations
       const safeDisposable = (avgDisposable > 0) ? avgDisposable : 0;
       const safeIncome = (avgIncome > 0) ? avgIncome : 0;
 
-      // if denominator is zero or negative, ratio = 0
       const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
       const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
       const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
@@ -713,7 +707,7 @@
         bankWarnings += `Expenses exceed income for months ${problemMonths.join(", ")}.<br/>`;
       }
 
-      // 3) measure how long so far
+      // 3) Measure processing time
       const totalSec = Math.floor((new Date() - startTime) / 1000);
       let nBanksManual = statements.filter(st => !st.prepopulated).length;
       if (nBanksManual < 1) nBanksManual = 1;
@@ -758,7 +752,7 @@
         decision = "Unaffordable";
         reason = "Gambling is below 10%, but repayment cost is over 65% of disposable income.";
       } else {
-        decision = "Affordable";
+        decision = "Affordability";
         reason = "Neither gambling nor repayment costs indicate financial distress.";
       }
 
@@ -769,7 +763,7 @@
         </div>
       `;
 
-      // 7) Build final summary table
+      // 7) Build final summary table with right justified numbers
       const dispAvgIncome = `£${formatNumericValue(avgIncome)}`;
       const dispAvgExpenses = `£${formatNumericValue(avgExpenses)}`;
       const dispAvgGambling = `£${formatNumericValue(avgGambling)}`;
@@ -780,17 +774,17 @@
 
       let summaryHTML = `
         <table class="summary-table">
-          <tr><th>Average Income</th><td>${dispAvgIncome} per month</td></tr>
-          <tr><th>Average Expenses (excl. gambling)</th><td>${dispAvgExpenses} per month</td></tr>
-          <tr><th>Average Gambling</th><td>${dispAvgGambling} per month</td></tr>
-          <tr><th>Average Disposable Income</th><td>${dispAvgDisposable} per month</td></tr>
-          <tr><th>Gambling as % of Income</th><td>${dispGambPctIncome}</td></tr>
-          <tr><th>Gambling as % of Disposable Income</th><td>${dispGambPctDisposable}</td></tr>
-          <tr><th>Loan Repayments as % of Disposable Income</th><td>${dispLoanRepayPct}</td></tr>
+          <tr><th>Average Income</th><td style="text-align:right;">${dispAvgIncome} per month</td></tr>
+          <tr><th>Average Expenses (excl. gambling)</th><td style="text-align:right;">${dispAvgExpenses} per month</td></tr>
+          <tr><th>Average Gambling</th><td style="text-align:right;">${dispAvgGambling} per month</td></tr>
+          <tr><th>Average Disposable Income</th><td style="text-align:right;">${dispAvgDisposable} per month</td></tr>
+          <tr><th>Gambling as % of Income</th><td style="text-align:right;">${dispGambPctIncome}</td></tr>
+          <tr><th>Gambling as % of Disposable Income</th><td style="text-align:right;">${dispGambPctDisposable}</td></tr>
+          <tr><th>Loan Repayments as % of Disposable Income</th><td style="text-align:right;">${dispLoanRepayPct}</td></tr>
         </table>
       `;
 
-      // 8) Build final process area (decision submission) - NO override radio
+      // 8) Build final process area (decision submission)
       let processDecisionHTML = `
         <div class="bg-gray-50 p-4 mt-4 border rounded">
           <h4 class="font-bold mb-2">Process Decision</h4>
@@ -844,8 +838,10 @@
       const finalSubmitBtn = document.getElementById("finalSubmitBtn");
       if (selected === "review") {
         reviewContainer.style.display = "block";
-        const comment = document.getElementById("reviewComment").value.trim();
-        finalSubmitBtn.disabled = !comment; // also need overrides check
+        let comment = document.getElementById("reviewComment").value.trim();
+        // Remove commas from the comment text
+        comment = comment.replace(/,/g, "");
+        finalSubmitBtn.disabled = !comment;
       } else {
         reviewContainer.style.display = "none";
         finalSubmitBtn.disabled = (selected === "");
@@ -857,17 +853,14 @@
      * Build data6 and data7
      *************************************/
     function buildAffordabilityInput() {
-      // data6 => CSV with repeated blocks of 19 items:
-      // <bankName>, 18 numeric items
+      // data6 => CSV with repeated blocks of 19 items: <bankName>, 18 numeric items
       let arr = [];
       statements.forEach(st => {
-        // bank name
         arr.push(st.bank);
-        // numeric items (no thousands separators, 2 decimals)
         for (let r = 0; r < categories.length; r++) {
           for (let m = 0; m < 3; m++) {
             let val = st.data[`${r}_${m}`] || 0;
-            arr.push(val.toFixed(2)); // e.g. "1234.56"
+            arr.push(val.toFixed(2));
           }
         }
       });
@@ -888,21 +881,22 @@
       // 6) pctDisp(####.00%)
       // 7) pctLoan(####.00%)
       // 8) final decision (string)
-      // 9) short reason (or blank)
-      // 10) time in minutes (##.00)
+      // 9) reason (string)
+      // 10) time in minutes (##, nearest minute)
       const fmtNum = (val) => val.toFixed(2);
-      const fmtPct = (val) => fmtNum(val) + "%";
+      const fmtPct = (val) => (val).toFixed(0) + "%";
       let items = [];
-      items.push(fmtNum(avgInc));   // 1
-      items.push(fmtNum(avgExp));   // 2
-      items.push(fmtNum(avgGamb));  // 3
-      items.push(fmtNum(avgDisp));  // 4
-      items.push(fmtPct(pctInc));   // 5
-      items.push(fmtPct(pctDisp));  // 6
-      items.push(fmtPct(pctLoan));  // 7
-      items.push(finalDecision);    // 8
-      items.push(finalReason);      // 9
-      items.push(parseFloat(timeMin).toFixed(2)); // 10
+      items.push(fmtNum(avgInc));
+      items.push(fmtNum(avgExp));
+      items.push(fmtNum(avgGamb));
+      items.push(fmtNum(avgDisp));
+      items.push(fmtPct(pctInc));
+      items.push(fmtPct(pctDisp));
+      items.push(fmtPct(pctLoan));
+      items.push(finalDecision);
+      items.push(finalReason);
+      // Round time to the nearest minute
+      items.push(Math.round(timeMin));
       return items.join(",");
     }
 
@@ -923,11 +917,7 @@
         showAlert("No decision box found. Did you process data first?");
         return;
       }
-      // e.g. "Decision: Unaffordable"
       const autoDecision = decBox.innerText.split(":")[1].trim(); 
-      // e.g. "Unaffordable"
-
-      // auto reason is in the paragraph below
       const decParagraph = document.querySelector(".decision-box p");
       let autoReason = decParagraph ? decParagraph.innerText.trim() : "";
 
@@ -935,18 +925,17 @@
       let finalReason = "";
 
       if (selected === "default") {
-        // Combine autoDecision + autoReason into one
-        // e.g. "Unaffordable - Gambling exceeds 15%..."
-        finalDecision = autoDecision + " - " + autoReason;
-        finalReason = ""; // or you can store the autoReason here if you prefer
+        // For default, use auto decision and auto reason (commas in autoReason are preserved)
+        finalDecision = autoDecision;
+        finalReason = autoReason;
       } else if (selected === "review") {
-        const comment = document.getElementById("reviewComment").value.trim();
-        // e.g. "Revisit - user comment"
+        let comment = document.getElementById("reviewComment").value.trim();
+        // Remove commas from the comment for final decision text
+        comment = comment.replace(/,/g, "");
         finalDecision = "Revisit - " + comment;
         finalReason = "";
       }
 
-      // Recalculate summary for data7
       const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
@@ -974,11 +963,9 @@
       const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
       const loanRepayPct = safeDisposable > 0 ? (monthlyRepayment / safeDisposable) * 100 : 0;
 
-      // Stop timer now
       let finalSec = stopTimer();
-      let finalMin = (finalSec / 60);
+      let finalMin = finalSec / 60;
 
-      // Build data6 (affordability_input) & data7 (affordability_output)
       let data6 = buildAffordabilityInput();
       let data7 = buildAffordabilityOutput(
         avgIncome, avgExpenses, avgGambling, avgDisposable,
