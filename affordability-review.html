@@ -468,6 +468,8 @@
                 }
               }
             }
+            // Mark the bank as entered
+            statements[foundIndex].entered = true;
             const btn = document.getElementById(`enterDataBtn_${foundIndex}`);
             if (btn) {
               btn.innerText = "Review Data";
@@ -482,6 +484,8 @@
         loadPriorBtn.classList.remove("bg-green-600");
         loadPriorBtn.classList.add("bg-blue-600");
         showAlert("Prior input data loaded for matching bank accounts.");
+        // Ensure the Process Data button is updated after loading prior data
+        checkProcessButton();
       }
     }
 
@@ -846,7 +850,7 @@
         reviewContainer.style.display = "none";
         finalSubmitBtn.disabled = (selected === "");
       }
-      checkAllOverrides(); // incorporate override checks
+      checkAllOverrides();
     }
 
     /*************************************
@@ -882,7 +886,7 @@
       // 7) pctLoan(####.00%)
       // 8) final decision (string)
       // 9) reason (string)
-      // 10) time in minutes (##, nearest minute)
+      // 10) time in minutes (nearest minute)
       const fmtNum = (val) => val.toFixed(2);
       const fmtPct = (val) => (val).toFixed(0) + "%";
       let items = [];
@@ -895,7 +899,6 @@
       items.push(fmtPct(pctLoan));
       items.push(finalDecision);
       items.push(finalReason);
-      // Round time to the nearest minute
       items.push(Math.round(timeMin));
       return items.join(",");
     }
@@ -925,12 +928,10 @@
       let finalReason = "";
 
       if (selected === "default") {
-        // For default, use auto decision and auto reason (commas in autoReason are preserved)
         finalDecision = autoDecision;
         finalReason = autoReason;
       } else if (selected === "review") {
         let comment = document.getElementById("reviewComment").value.trim();
-        // Remove commas from the comment for final decision text
         comment = comment.replace(/,/g, "");
         finalDecision = "Revisit - " + comment;
         finalReason = "";
