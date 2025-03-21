@@ -469,6 +469,21 @@
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = !allEntered;
       processBtn.style.backgroundColor = allEntered ? "green" : "red";
+      const finalSubmitBtn = document.getElementById("finalSubmitBtn");
+      if (finalSubmitBtn) {
+        const decisionOptions = document.getElementsByName("decisionOption");
+        let selected = "";
+        for (let opt of decisionOptions) {
+          if (opt.checked) { selected = opt.value; break; }
+        }
+        const reviewComment = document.getElementById("reviewComment");
+        const commentVal = reviewComment ? reviewComment.value.trim() : "";
+        if (!allEntered || selected === "" || (selected === "review" && !commentVal)) {
+          finalSubmitBtn.disabled = true;
+        } else {
+          finalSubmitBtn.disabled = false;
+        }
+      }
     }
     /*************************************
      * Override Check Functions
