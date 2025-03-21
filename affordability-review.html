@@ -5,14 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Affordability Assessment</title>
   
+  <!-- Favicon snippets -->
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
-
+  
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
+  
   <style>
     body {
       margin: 0;
@@ -21,15 +23,30 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
+    /* Ensure full width for error/timer/override containers */
     #errorContainer, #bankWarningsDiv, #timerOverrideDiv {
       width: 100%;
     }
+    /* Consistent spacing below error container */
     #errorContainer {
       margin-bottom: 20px;
     }
   </style>
-
+  
   <script>
+    /*************************************
+     * Force Logout on Page Load to Require Re‑Login
+     *************************************/
+    function forceLogout() {
+      // Adjust the logout URL as needed for your back‑end.
+      fetch("https://web-production-15e92.up.railway.app/logout", { credentials: 'include' })
+        .then(() => console.log("Forced logout"))
+        .catch(err => console.error("Error during forced logout:", err));
+    }
+    
+    /*************************************
+     * Load Timer Configuration from External JSON
+     *************************************/
     let TIMER_CONFIG = {};
     fetch('./timer_config.json')
       .then(response => response.json())
@@ -38,7 +55,10 @@
         console.error("Failed to load timer_config.json:", err);
         alert("Critical error: Timer configuration file could not be loaded.");
       });
-
+    
+    /*************************************
+     * Global Variables and Categories (6 rows only)
+     *************************************/
     const categories = [
       "Income",
       "Rent/Mortgage",
@@ -47,7 +67,7 @@
       "Credit Commitments",
       "Gambling Expenditure"
     ];
-
+    
     let dynamicMonths = [];
     let statements = [];
     let priorInputData = "";
@@ -56,7 +76,10 @@
     let startTime = null;
     let timerInterval = null;
     let totalTimeSpentSeconds = 0;
-
+    
+    /*************************************
+     * Timer Functions
+     *************************************/
     function updateTimerDisplay() {
       if (!startTime) return;
       const diffSec = Math.floor((new Date() - startTime) / 1000);
@@ -65,27 +88,32 @@
       const ss = (diffSec % 60).toString().padStart(2, '0');
       document.getElementById("timerDisplay").innerText = `Timer: ${hh}:${mm}:${ss}`;
     }
-
     function startTimer() {
       startTime = new Date();
+      updateTimerDisplay();
       timerInterval = setInterval(updateTimerDisplay, 1000);
     }
-
     function stopTimer() {
-      clearInterval(timerInterval);
+      if (timerInterval) clearInterval(timerInterval);
       totalTimeSpentSeconds = Math.floor((new Date() - startTime) / 1000);
       return totalTimeSpentSeconds;
     }
-
+    
+    /*************************************
+     * Numeric Formatting
+     *************************************/
     function formatNumericValue(num) {
       return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
+    
+    /*************************************
+     * Save Data Function
+     *************************************/
     function saveData(statementIndex, rowIndex, monthIndex) {
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
       const inputElem = document.getElementById(inputId);
       let val = parseFloat(inputElem.value.replace(/,/g, ''));
-      if (isNaN(val)) val = 0;
+      if (isNaN(val)) { val = 0; }
       statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = val;
       inputElem.value = formatNumericValue(val);
       const cb = document.getElementById("override_" + statementIndex);
@@ -95,7 +123,10 @@
         checkAllOverrides();
       }
     }
-
+    
+    /*************************************
+     * Reset Form Function
+     *************************************/
     function resetForm() {
       document.getElementById("fullName").value = "";
       document.getElementById("bankNames").value = "";
@@ -109,7 +140,7 @@
       overrides = [];
       priorInputData = "";
       timerOverrideAcknowledged = false;
-      clearInterval(timerInterval);
+      if (timerInterval) { clearInterval(timerInterval); }
       startTime = null;
       totalTimeSpentSeconds = 0;
       document.getElementById("timerDisplay").innerText = "Timer: 0:00:00";
@@ -117,7 +148,10 @@
       processBtn.disabled = true;
       processBtn.style.backgroundColor = "red";
     }
-
+    
+    /*************************************
+     * Fetch Lead Data Function
+     *************************************/
     function fetchLeadData() {
       resetForm();
       const leadId = document.getElementById("leadId").value.trim();
@@ -128,16 +162,17 @@
         .then(data => {
           if (data.error) { alert(data.error); return; }
           document.getElementById("fullName").value = data.fullName || "";
-          document.getElementById("bankNames").value = data.bankNames.split(",").join("\n");
-          document.getElementById("statement_urls").value = data.statement_urls.split(",").join("\n");
+          document.getElementById("bankNames").value = data.bankNames ? data.bankNames.split(",").join("\n") : "";
+          document.getElementById("statement_urls").value = data.statement_urls ? data.statement_urls.split(",").join("\n") : "";
           document.getElementById("periodCovered").value = data.periodCovered || "";
           document.getElementById("monthlyRepayment").value = data.monthlyRepayment || "";
-          dynamicMonths = data.monthsForTable.length === 3 ? data.monthsForTable : ["N/A","N/A","N/A"];
-
-          const bankNamesArr = data.bankNames.split(",").filter(Boolean);
-          const statementUrlsArr = data.statement_urls.split(",").filter(Boolean);
+          dynamicMonths = (data.monthsForTable && data.monthsForTable.length === 3) ? data.monthsForTable : ["N/A", "N/A", "N/A"];
+    
+          const bankNamesArr = data.bankNames ? data.bankNames.split(",").map(n => n.trim()).filter(Boolean) : [];
+          const statementUrlsArr = data.statement_urls ? data.statement_urls.split(",").map(u => u.trim()).filter(Boolean) : [];
           if (bankNamesArr.length !== statementUrlsArr.length) {
-            alert("Mismatch between number of bank names and statement URLs."); return;
+            alert("Mismatch between number of bank names and statement URLs.");
+            return;
           }
           statements = bankNamesArr.map((bank, index) => ({
             bank: bank,
@@ -147,15 +182,21 @@
             data: {}
           }));
           createStatementLinks();
-
-          if (data.inputData.trim() !== "") {
+    
+          if (data.inputData && data.inputData.trim() !== "") {
             priorInputData = data.inputData.trim();
             createLoadPriorButton();
           }
         })
-        .catch(err => { alert("Failed to fetch data from FLG."); });
+        .catch(err => { 
+          console.error("Error fetching FLG data:", err);
+          alert("Failed to fetch data from FLG.");
+        });
     }
-
+    
+    /*************************************
+     * Create Statement Links Function
+     *************************************/
     function createStatementLinks() {
       const pdfContainer = document.getElementById("bankStatements");
       pdfContainer.innerHTML = "";
@@ -168,8 +209,9 @@
         viewLink.classList.add("text-blue-500", "underline");
         viewLink.onclick = (e) => { e.preventDefault(); window.open(statement.file, "_blank"); };
     
+        // Container for the "Enter Data" button and tick icon
         const btnContainer = document.createElement("div");
-        btnContainer.classList.add("ml-4", "mt-2", "flex", "items-center");
+        btnContainer.classList.add("btn-container", "ml-4", "mt-2", "flex", "items-center");
     
         const enterDataBtn = document.createElement("button");
         enterDataBtn.id = "enterDataBtn_" + index;
@@ -190,16 +232,26 @@
       });
     }
     
+    /*************************************
+     * Create Load Prior Input Button
+     *************************************/
     function createLoadPriorButton() {
+      if (document.getElementById("loadPriorBtn")) return;
       const bankStatementsDiv = document.getElementById("bankStatements");
+      const loadPriorBtnContainer = document.createElement("div");
+      loadPriorBtnContainer.classList.add("mb-4");
       const loadPriorBtn = document.createElement("button");
       loadPriorBtn.id = "loadPriorBtn";
       loadPriorBtn.innerText = "Option: load prior input data statement categorisation";
       loadPriorBtn.classList.add("bg-green-600", "text-white", "px-4", "py-2", "rounded-md", "w-full");
       loadPriorBtn.onclick = loadPriorInputData;
-      bankStatementsDiv.appendChild(loadPriorBtn);
+      loadPriorBtnContainer.appendChild(loadPriorBtn);
+      bankStatementsDiv.appendChild(loadPriorBtnContainer);
     }
     
+    /*************************************
+     * Load Statement Form for a Bank
+     *************************************/
     function loadStatementForm(statementIndex) {
       const statement = statements[statementIndex];
       const formContainer = document.getElementById("statementForm");
@@ -221,6 +273,10 @@
       table += `<button onclick='summarizeData(${statementIndex})' class='mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-full'>Upload data for this bank to summary before processing</button>`;
       formContainer.innerHTML = table;
     }
+    
+    /*************************************
+     * Summarize Data for a Bank Statement
+     *************************************/
     function summarizeData(statementIndex) {
       document.getElementById("errorContainer").innerHTML = "";
       let summary = `<h3 class='text-lg font-bold mt-6'>Summary Across Banks</h3>`;
@@ -243,6 +299,7 @@
       summary += `</table>`;
     
       document.getElementById("statementForm").innerHTML = summary;
+      // Update the button state for the bank
       const btnContainer = document.querySelectorAll("#bankStatements .btn-container")[statementIndex];
       const enterDataBtn = btnContainer.querySelector("button");
       enterDataBtn.innerText = "Edit Data";
@@ -254,6 +311,9 @@
       checkProcessButton();
     }
     
+    /*************************************
+     * Check Process Button State
+     *************************************/
     function checkProcessButton() {
       const allEntered = statements.every(statement => statement.entered);
       const processBtn = document.getElementById("processDataBtn");
@@ -261,10 +321,13 @@
       processBtn.style.backgroundColor = allEntered ? "green" : "red";
     }
     
+    /*************************************
+     * Load Prior Input Data Function
+     *************************************/
     function loadPriorInputData() {
       if (!priorInputData) { alert("No prior input data available."); return; }
       const fields = priorInputData.split(",").map(f => f.trim());
-      const groupSize = 19;
+      const groupSize = 19; // now 19 comma-separated items per bank
       for (let i = 0; i < fields.length; i += groupSize) {
         const group = fields.slice(i, i + groupSize);
         if (group.length < groupSize) continue;
@@ -276,7 +339,7 @@
             for (let month = 0; month < 3; month++) {
               const fieldIndex = 1 + (row * 3) + month;
               let val = parseFloat(group[fieldIndex].replace(/,/g, ''));
-              if (isNaN(val)) val = 0;
+              if (isNaN(val)) { val = 0; }
               statements[foundIndex].data[`${row}_${month}`] = val;
               const inputElem = document.getElementById(`${foundIndex}_${row}_${month}`);
               if (inputElem) { inputElem.value = formatNumericValue(val); }
@@ -292,7 +355,189 @@
       }
       alert("Prior input data loaded for matching bank accounts.");
     }
-
+    
+    /*************************************
+     * Render Timer Override Box using Timer Config from JSON
+     *************************************/
+    function renderTimerOverrideBox(timePerBank) {
+      const container = document.getElementById("errorContainer");
+      let timerDiv = document.getElementById("timerOverrideDiv");
+      if (!timerDiv) {
+        timerDiv = document.createElement("div");
+        timerDiv.id = "timerOverrideDiv";
+        timerDiv.classList.add("w-full", "mt-2", "p-4");
+        container.appendChild(timerDiv);
+      }
+      let message, overrideText, bgColor;
+      if (timePerBank < TIMER_CONFIG.base_lower_limit) {
+        message = TIMER_CONFIG.warning_message_low.replace("{time}", timePerBank.toFixed(1));
+        overrideText = TIMER_CONFIG.override_text_low;
+        bgColor = "bg-yellow-100 border-yellow-400 text-yellow-700";
+      } else if (timePerBank > TIMER_CONFIG.base_upper_limit) {
+        message = TIMER_CONFIG.warning_message_high
+                    .replace("{time}", timePerBank.toFixed(1))
+                    .replace("{min}", TIMER_CONFIG.base_lower_limit)
+                    .replace("{max}", TIMER_CONFIG.base_upper_limit);
+        overrideText = TIMER_CONFIG.override_text_high;
+        bgColor = "bg-yellow-100 border-yellow-400 text-yellow-700";
+      } else {
+        message = TIMER_CONFIG.normal_message
+                    .replace("{min}", TIMER_CONFIG.base_lower_limit)
+                    .replace("{max}", TIMER_CONFIG.base_upper_limit);
+        overrideText = TIMER_CONFIG.override_text_normal;
+        bgColor = "bg-green-100 border-green-400 text-green-700";
+      }
+      timerDiv.innerHTML = `
+        <div class="border ${bgColor} px-4 py-3 rounded relative w-full" role="alert">
+          <span>${message}</span>
+          <div class="mt-2">
+            <input type="checkbox" id="timerOverrideCheckbox" class="mr-2" />
+            <label for="timerOverrideCheckbox">${overrideText}</label>
+          </div>
+        </div>`;
+      document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => {
+        timerOverrideAcknowledged = e.target.checked;
+        checkAllOverrides();
+      });
+    }
+    
+    /*************************************
+     * Check All Overrides Function
+     *************************************/
+    function checkAllOverrides() {
+      const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
+      const allOk = bankOverridesOk && timerOverrideAcknowledged;
+      updateBankOverrideMessage();
+      const processBtn = document.getElementById("processDataBtn");
+      processBtn.disabled = !allOk;
+      processBtn.style.backgroundColor = allOk ? "green" : "red";
+    }
+    
+    function updateBankOverrideMessage() {
+      const bankWarningsDiv = document.getElementById("bankWarningsDiv");
+      if (bankWarningsDiv && (overrides.length === statements.length && overrides.every(val => val))) {
+        if (!bankWarningsDiv.querySelector(".override-confirmation")) {
+          const msg = document.createElement("div");
+          msg.classList.add("override-confirmation", "mt-2", "font-bold", "text-red-700");
+          msg.innerText = "User has elected to proceed despite these warnings";
+          bankWarningsDiv.appendChild(msg);
+        }
+      }
+    }
+    
+    /*************************************
+     * Final Process Data Function
+     *************************************/
+    function processFinalData() {
+      document.getElementById("errorContainer").innerHTML = "";
+      if (!statements.every(st => st.entered)) { return; }
+    
+      // Compute bank-level totals and warnings
+      let sumIncome = [0, 0, 0], sumExpenses = [0, 0, 0];
+      statements.forEach(st => {
+        for (let m = 0; m < 3; m++) {
+          const inc = st.data[`0_${m}`] || 0;
+          sumIncome[m] += inc;
+          let exp = 0;
+          // Note: categories length is 6 (indexes 0-5); income is row 0, expenses are rows 1-5.
+          for (let r = 1; r < categories.length; r++) {
+            exp += st.data[`${r}_${m}`] || 0;
+          }
+          sumExpenses[m] += exp;
+        }
+      });
+      let bankWarnings = "";
+      let problemMonths = [];
+      for (let i = 0; i < 3; i++) {
+        if (sumExpenses[i] > sumIncome[i]) { problemMonths.push(dynamicMonths[i]); }
+      }
+      if (problemMonths.length > 0) {
+        if (problemMonths.length === 1) {
+          bankWarnings += `Expenses exceed income for month ${problemMonths[0]}.<br/>`;
+        } else if (problemMonths.length === 2) {
+          bankWarnings += `Expenses exceed income for months ${problemMonths[0]} and ${problemMonths[1]}.<br/>`;
+        } else {
+          bankWarnings += `Expenses exceed income for months ${problemMonths.join(", ")}.<br/>`;
+        }
+      }
+      for (let i = 0; i < 3; i++) {
+        const inc = sumIncome[i], exp = sumExpenses[i];
+        if (inc === 0 && exp === 0) {
+          bankWarnings += `No income or expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
+        } else if (inc === 0) {
+          bankWarnings += `No income entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
+        } else if (exp === 0) {
+          bankWarnings += `No expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
+        }
+      }
+      
+      let combinedHTML = "";
+      if (bankWarnings) {
+        combinedHTML += `<div id="bankWarningsDiv" class="border border-red-400 bg-red-100 text-red-700 px-4 py-3 rounded relative w-full" style="margin-bottom:20px;">
+                           <strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>
+                           ${bankWarnings}
+                         </div>`;
+        renderOverrideCheckboxes();
+      }
+    
+      // Stop timer and calculate average time per manually-entered bank
+      const totalSec = stopTimer();
+      let nBanksManual = statements.filter(st => !st.prepopulated).length;
+      if (nBanksManual < 1) { nBanksManual = 1; }
+      const timePerBank = (totalSec / 60) / nBanksManual;
+    
+      combinedHTML += `<div id="timerOverridePlaceholder" style="margin-top:20px;"></div>`;
+      document.getElementById("errorContainer").innerHTML = combinedHTML;
+    
+      renderTimerOverrideBox(timePerBank);
+    
+      const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
+      if (!(bankOverridesOk && timerOverrideAcknowledged)) {
+        const processBtn = document.getElementById("processDataBtn");
+        processBtn.disabled = true;
+        processBtn.style.backgroundColor = "red";
+        return;
+      }
+    
+      localStorage.setItem("affordabilityPage1Time", String(totalSec));
+      window.location.href = 'affordability-summary.html';
+    }
+    
+    /*************************************
+     * Render Override Checkboxes
+     *************************************/
+    function renderOverrideCheckboxes() {
+      overrides = new Array(statements.length).fill(false);
+      statements.forEach((_, idx) => {
+        const btnContainer = document.querySelectorAll("#bankStatements .btn-container")[idx];
+        const btn = btnContainer.querySelector("button");
+        btn.style.backgroundColor = "orange";
+        btn.innerText = "Edit Data";
+        const tickSpan = document.getElementById("tick_" + idx);
+        tickSpan.innerText = "";
+        let cb = document.getElementById("override_" + idx);
+        if (!cb) {
+          cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.id = "override_" + idx;
+          cb.classList.add("ml-2");
+          cb.addEventListener("change", () => {
+            overrides[idx] = cb.checked;
+            checkAllOverrides();
+          });
+          btnContainer.appendChild(cb);
+          const label = document.createElement("label");
+          label.setAttribute("for", "override_" + idx);
+          label.classList.add("ml-1");
+          label.innerText = "Submit despite warning";
+          btnContainer.appendChild(label);
+        }
+      });
+    }
+    
+    /*************************************
+     * Check Session and Update Login Button
+     *************************************/
     function checkSession() {
       fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: 'include' })
         .then(response => response.json())
@@ -312,63 +557,73 @@
           }
         })
         .catch(err => { 
-          console.error("Error checking session status:", err); 
+          console.error("Error checking session status:", err);
           const fetchDataBtn = document.getElementById("fetchDataBtn");
           fetchDataBtn.disabled = true;
           fetchDataBtn.style.backgroundColor = "red";
         });
     }
     
-    window.addEventListener("DOMContentLoaded", checkSession);
-
+    /*************************************
+     * On DOMContentLoaded: Force logout then check session, set timer display, etc.
+     *************************************/
     window.addEventListener("DOMContentLoaded", () => {
+      forceLogout();
+      checkSession();
       document.getElementById("timerDisplay").innerText = "Timer: 0:00:00";
     });
+  </script>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
+    <!-- Top Bar -->
+    <div class="flex justify-between items-center mb-4">
+      <button onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'" class="bg-gray-500 text-white px-4 py-2 rounded-md">
+        Return to Main Menu
+      </button>
+      <button onclick="window.location.href='https://web-production-15e92.up.railway.app/login'" class="bg-red-600 text-white px-4 py-2 rounded-md">
+        Log in with Microsoft 365
+      </button>
+    </div>
     
-    </script>
-    </head>
-    <body class="bg-gray-100 p-6">
-      <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
-        <div class="flex justify-between items-center mb-4">
-          <button onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'" class="bg-gray-500 text-white px-4 py-2 rounded-md">Return to Main Menu</button>
-          <button onclick="window.location.href='https://web-production-15e92.up.railway.app/login'" class="bg-red-600 text-white px-4 py-2 rounded-md">Log in with Microsoft 365</button>
-        </div>
+    <!-- Logo and Title -->
+    <div class="text-center mb-4">
+      <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true" alt="Company Logo" class="h-16 mx-auto mb-2"/>
+      <h1 class="text-2xl font-bold">Affordability Assessment</h1>
+    </div>
     
-        <div class="text-center mb-4">
-          <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true" alt="Company Logo" class="h-16 mx-auto mb-2"/>
-          <h1 class="text-2xl font-bold">Affordability Assessment</h1>
-        </div>
+    <!-- Lead ID Section -->
+    <label class="block font-medium">Enter Lead ID:</label>
+    <div class="flex gap-2 mt-2">
+      <input id="leadId" class="border p-2 flex-1 rounded-md text-gray-600" placeholder="123456789"/>
+      <button onclick="fetchLeadData()" id="fetchDataBtn" class="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-blue-700" disabled>
+        Fetch Data
+      </button>
+    </div>
     
-        <label class="block font-medium">Enter Lead ID:</label>
-        <div class="flex gap-2 mt-2">
-          <input id="leadId" class="border p-2 flex-1 rounded-md text-gray-600"/>
-          <button onclick="fetchLeadData()" id="fetchDataBtn" class="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-blue-700" disabled>
-            Fetch Data
-          </button>
-        </div>
+    <!-- Timer Display -->
+    <div id="timerDisplay" class="mt-4 font-semibold">Timer: 0:00:00</div>
     
-
-
-        <div id="timerDisplay" class="mt-4 font-semibold">Timer: 0:00:00</div>
+    <!-- Lead Details -->
+    <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
+    <input id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+    <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200 mt-2" rows="3" readonly></textarea>
+    <input id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200 mt-2" readonly />
+    <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200 mt-2" rows="3" readonly></textarea>
+    <input id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200 mt-2" type="number" readonly />
     
-        <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
-        <input id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-        <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200 mt-2" rows="3" readonly></textarea>
-        <input id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-        <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
-        <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+    <!-- Bank Statements Section -->
+    <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
+    <div id="bankStatements" class="mt-2"></div>
+    <div id="statementForm"></div>
     
-        <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
-        <div id="bankStatements" class="mt-2"></div>
-        <div id="statementForm"></div>
-        <div id="errorContainer" class="w-full"></div>
+    <!-- Error / Warning Container -->
+    <div id="errorContainer" class="w-full"></div>
     
-        <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md w-full" disabled onclick="processFinalData()">Process Data</button>
-    
-      </div>
-    </body>
-    </html>
-    
-
-
-
+    <!-- Process Data Button -->
+    <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md w-full" disabled onclick="processFinalData()">
+      Process Data
+    </button>
+  </div>
+</body>
+</html>
