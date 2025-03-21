@@ -5,9 +5,9 @@
     "additional_time_third_bank": 15,
     "additional_time_fourth_plus_bank": 10,
     "warning_message_low": "Time per Bank Account to review and categorise data was only {time} minutes per bank – are you sure you reviewed everything carefully?",
-    "warning_message_high": "Time per Bank Account to review and categorise data was {time} minutes per bank – this is taking longer than the recommended range of {min} to {max} minutes per bank – please discuss any training requirements with your line manager",
+    "warning_message_high": "Time per Bank Account to review and categorise data was {time} minutes per bank – this is taking longer than the recommended range of {min} to {max} minutes per bank – please discuss any training requirements with your line manager if you are consistently getting this warning (we know that some of them just take longer to process than others)",
     "normal_message": "Time per Bank Account in the expected range of between {min} to {max} minutes to review and categorise",
-    "override_text_low": "Submit despite warning",
-    "override_text_high": "Submit despite warning",
+    "override_text_low": "Submit despite information",
+    "override_text_high": "Submit - this one just took a bit longer",
     "override_text_normal": "Acknowledge timing achieved"
 }

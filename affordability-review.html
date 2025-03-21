@@ -27,7 +27,6 @@
     #errorContainer, #bankWarningsDiv, #timerOverrideDiv {
       width: 100%;
     }
-    /* Consistent spacing below error container */
     #errorContainer {
       margin-bottom: 20px;
     }
@@ -38,7 +37,7 @@
      * Force Logout on Page Load to Require Re‑Login
      *************************************/
     function forceLogout() {
-      // Adjust the logout URL as needed for your back‑end.
+      // This call should clear any persistent token – adjust the endpoint as needed.
       fetch("https://web-production-15e92.up.railway.app/logout", { credentials: 'include' })
         .then(() => console.log("Forced logout"))
         .catch(err => console.error("Error during forced logout:", err));
@@ -59,6 +58,7 @@
     /*************************************
      * Global Variables and Categories (6 rows only)
      *************************************/
+    // Categories: row 0 = Income; rows 1–4 = expenses (excluding gambling); row 5 = Gambling Expenditure
     const categories = [
       "Income",
       "Rent/Mortgage",
@@ -68,8 +68,8 @@
       "Gambling Expenditure"
     ];
     
-    let dynamicMonths = [];
-    let statements = [];
+    let dynamicMonths = []; // Should be set when fetching data (3 months expected)
+    let statements = [];    // Array of bank statement objects (each with a .data object using keys like "0_0", "1_2", etc.)
     let priorInputData = "";
     let overrides = [];
     let timerOverrideAcknowledged = false;
@@ -107,7 +107,7 @@
     }
     
     /*************************************
-     * Save Data Function
+     * Save Data Function (called on blur or input)
      *************************************/
     function saveData(statementIndex, rowIndex, monthIndex) {
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
@@ -122,6 +122,9 @@
         overrides[statementIndex] = false;
         checkAllOverrides();
       }
+      // Mark this bank as having data entered:
+      statements[statementIndex].entered = true;
+      checkProcessButton();
     }
     
     /*************************************
@@ -179,7 +182,7 @@
             file: statementUrlsArr[index],
             entered: false,
             prepopulated: false,
-            data: {}
+            data: {}  // keys like "0_0", "1_2", etc.
           }));
           createStatementLinks();
     
@@ -209,7 +212,7 @@
         viewLink.classList.add("text-blue-500", "underline");
         viewLink.onclick = (e) => { e.preventDefault(); window.open(statement.file, "_blank"); };
     
-        // Container for the "Enter Data" button and tick icon
+        // Button container for entering data and tick mark
         const btnContainer = document.createElement("div");
         btnContainer.classList.add("btn-container", "ml-4", "mt-2", "flex", "items-center");
     
@@ -265,7 +268,7 @@
         dynamicMonths.forEach((_, monthIndex) => {
           const rawVal = statement.data[`${rowIndex}_${monthIndex}`] || 0;
           const displayVal = formatNumericValue(rawVal);
-          table += `<td class='border p-2'><input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}' class='border p-2 w-full rounded-md text-right' value="${displayVal}" onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})"></td>`;
+          table += `<td class='border p-2'><input type='number' id='${statementIndex}_${rowIndex}_${monthIndex}' class='border p-2 w-full rounded-md text-right' value="${displayVal}" onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})"></td>`;
         });
         table += "</tr>";
       });
@@ -275,31 +278,10 @@
     }
     
     /*************************************
-     * Summarize Data for a Bank Statement
+     * Summarize Data for a Bank (per bank tick mark update)
      *************************************/
     function summarizeData(statementIndex) {
-      document.getElementById("errorContainer").innerHTML = "";
-      let summary = `<h3 class='text-lg font-bold mt-6'>Summary Across Banks</h3>`;
-      summary += `<table class='w-full border-collapse border border-gray-300 mt-4'><tr><th class='border p-2'>Category</th>`;
-      dynamicMonths.forEach(m => summary += `<th class='border p-2'>${m}</th>`);
-      summary += `<th class='border p-2'>Average</th></tr>`;
-    
-      categories.forEach((category, rowIndex) => {
-        summary += `<tr><td class='border p-2 font-semibold'>${category}</td>`;
-        let monthTotals = [];
-        dynamicMonths.forEach((_, monthIndex) => {
-          let total = 0;
-          statements.forEach(st => { total += st.data[`${rowIndex}_${monthIndex}`] || 0; });
-          monthTotals.push(total);
-          summary += `<td class='border p-2 font-bold text-right'>${formatNumericValue(total)}</td>`;
-        });
-        const avg = monthTotals.reduce((a, b) => a + b, 0) / dynamicMonths.length;
-        summary += `<td class='border p-2 font-bold text-right'>${formatNumericValue(avg)}</td></tr>`;
-      });
-      summary += `</table>`;
-    
-      document.getElementById("statementForm").innerHTML = summary;
-      // Update the button state for the bank
+      // This function can mark a bank as complete and update the button state.
       const btnContainer = document.querySelectorAll("#bankStatements .btn-container")[statementIndex];
       const enterDataBtn = btnContainer.querySelector("button");
       enterDataBtn.innerText = "Edit Data";
@@ -312,7 +294,7 @@
     }
     
     /*************************************
-     * Check Process Button State
+     * Check Process Button State (enable summary if all banks complete)
      *************************************/
     function checkProcessButton() {
       const allEntered = statements.every(statement => statement.entered);
@@ -322,189 +304,121 @@
     }
     
     /*************************************
-     * Load Prior Input Data Function
+     * Calculate Averages, Analysis, and Decision
      *************************************/
-    function loadPriorInputData() {
-      if (!priorInputData) { alert("No prior input data available."); return; }
-      const fields = priorInputData.split(",").map(f => f.trim());
-      const groupSize = 19; // now 19 comma-separated items per bank
-      for (let i = 0; i < fields.length; i += groupSize) {
-        const group = fields.slice(i, i + groupSize);
-        if (group.length < groupSize) continue;
-        const bankNameFromData = group[0];
-        const foundIndex = statements.findIndex(s => s.bank.toLowerCase() === bankNameFromData.toLowerCase());
-        if (foundIndex !== -1) {
-          statements[foundIndex].prepopulated = true;
-          for (let row = 0; row < categories.length; row++) {
-            for (let month = 0; month < 3; month++) {
-              const fieldIndex = 1 + (row * 3) + month;
-              let val = parseFloat(group[fieldIndex].replace(/,/g, ''));
-              if (isNaN(val)) { val = 0; }
-              statements[foundIndex].data[`${row}_${month}`] = val;
-              const inputElem = document.getElementById(`${foundIndex}_${row}_${month}`);
-              if (inputElem) { inputElem.value = formatNumericValue(val); }
-            }
+    function calculateAveragesAndDecision() {
+      // Calculate averages across banks and months.
+      const nBanks = statements.length;
+      const nMonths = dynamicMonths.length;
+      let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
+      
+      // For each bank and each month, sum the relevant rows.
+      statements.forEach(statement => {
+        for (let m = 0; m < nMonths; m++) {
+          const income = parseFloat(statement.data[`0_${m}`]) || 0;
+          totalIncome += income;
+          // Sum rows 1 to 4 for expenses (excluding gambling)
+          let expenses = 0;
+          for (let r = 1; r <= 4; r++) {
+            expenses += parseFloat(statement.data[`${r}_${m}`]) || 0;
           }
-          const btn = document.getElementById(`enterDataBtn_${foundIndex}`);
-          if (btn) {
-            btn.innerText = "Review Data";
-            btn.classList.remove("bg-blue-600", "text-white");
-            btn.classList.add("bg-yellow-400", "text-white");
-          }
+          totalExpenses += expenses;
+          // Gambling expenditure is row 5
+          const gambling = parseFloat(statement.data[`5_${m}`]) || 0;
+          totalGambling += gambling;
         }
-      }
-      alert("Prior input data loaded for matching bank accounts.");
-    }
-    
-    /*************************************
-     * Render Timer Override Box using Timer Config from JSON
-     *************************************/
-    function renderTimerOverrideBox(timePerBank) {
-      const container = document.getElementById("errorContainer");
-      let timerDiv = document.getElementById("timerOverrideDiv");
-      if (!timerDiv) {
-        timerDiv = document.createElement("div");
-        timerDiv.id = "timerOverrideDiv";
-        timerDiv.classList.add("w-full", "mt-2", "p-4");
-        container.appendChild(timerDiv);
-      }
-      let message, overrideText, bgColor;
-      if (timePerBank < TIMER_CONFIG.base_lower_limit) {
-        message = TIMER_CONFIG.warning_message_low.replace("{time}", timePerBank.toFixed(1));
-        overrideText = TIMER_CONFIG.override_text_low;
-        bgColor = "bg-yellow-100 border-yellow-400 text-yellow-700";
-      } else if (timePerBank > TIMER_CONFIG.base_upper_limit) {
-        message = TIMER_CONFIG.warning_message_high
-                    .replace("{time}", timePerBank.toFixed(1))
-                    .replace("{min}", TIMER_CONFIG.base_lower_limit)
-                    .replace("{max}", TIMER_CONFIG.base_upper_limit);
-        overrideText = TIMER_CONFIG.override_text_high;
-        bgColor = "bg-yellow-100 border-yellow-400 text-yellow-700";
+      });
+      
+      const avgIncome = totalIncome / (nBanks * nMonths);
+      const avgExpenses = totalExpenses / (nBanks * nMonths);
+      const avgGambling = totalGambling / (nBanks * nMonths);
+      // Average Disposable Income = avgIncome - avgExpenses + avgGambling
+      const avgDisposableIncome = avgIncome - avgExpenses + avgGambling;
+      
+      // Calculate percentages (guard against division by zero)
+      const gamblingAsIncomePercent = avgIncome > 0 ? (avgGambling / avgIncome) * 100 : 0;
+      const gamblingAsDisposableIncomePercent = avgDisposableIncome > 0 ? (avgGambling / avgDisposableIncome) * 100 : 0;
+      const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
+      const loanRepaymentPercent = avgDisposableIncome > 0 ? (monthlyRepayment / avgDisposableIncome) * 100 : 0;
+      
+      // Build result summary HTML
+      let resultSummary = `
+        <div class='bg-white p-4 mt-6 shadow-md'>
+          <h3 class='text-xl font-bold'>Calculated Averages and Analysis</h3>
+          <p>Average Income: £${formatNumericValue(avgIncome)} per month</p>
+          <p>Average Expenses (excluding gambling): £${formatNumericValue(avgExpenses)} per month</p>
+          <p>Average Gambling: £${formatNumericValue(avgGambling)} per month</p>
+          <p>Average Disposable Income: £${formatNumericValue(avgDisposableIncome)} per month</p>
+          <p>Gambling as % of Total Income: ${formatNumericValue(gamblingAsIncomePercent)}%</p>
+          <p>Gambling as % of Total Disposable Income: ${formatNumericValue(gamblingAsDisposableIncomePercent)}%</p>
+          <p>Loan Repayments as % of Disposable Income: ${formatNumericValue(loanRepaymentPercent)}%</p>
+        </div>
+      `;
+      
+      // Determine decision message based on criteria
+      let decisionMessage = "";
+      if (gamblingAsIncomePercent > 15) {
+        decisionMessage = "Gambling exceeds 15% of income, indicating financial risk.";
+      } else if (gamblingAsIncomePercent >= 10 && gamblingAsIncomePercent <= 14 && loanRepaymentPercent > 50) {
+        decisionMessage = "Gambling between 10–14% and repayment exceeds 50% of disposable income.";
+      } else if (gamblingAsIncomePercent < 10 && loanRepaymentPercent > 65) {
+        decisionMessage = "Gambling is below 10%, but repayment cost is over 65% of disposable income.";
       } else {
-        message = TIMER_CONFIG.normal_message
-                    .replace("{min}", TIMER_CONFIG.base_lower_limit)
-                    .replace("{max}", TIMER_CONFIG.base_upper_limit);
-        overrideText = TIMER_CONFIG.override_text_normal;
-        bgColor = "bg-green-100 border-green-400 text-green-700";
-      }
-      timerDiv.innerHTML = `
-        <div class="border ${bgColor} px-4 py-3 rounded relative w-full" role="alert">
-          <span>${message}</span>
-          <div class="mt-2">
-            <input type="checkbox" id="timerOverrideCheckbox" class="mr-2" />
-            <label for="timerOverrideCheckbox">${overrideText}</label>
-          </div>
-        </div>`;
-      document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => {
-        timerOverrideAcknowledged = e.target.checked;
-        checkAllOverrides();
-      });
-    }
-    
-    /*************************************
-     * Check All Overrides Function
-     *************************************/
-    function checkAllOverrides() {
-      const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
-      const allOk = bankOverridesOk && timerOverrideAcknowledged;
-      updateBankOverrideMessage();
-      const processBtn = document.getElementById("processDataBtn");
-      processBtn.disabled = !allOk;
-      processBtn.style.backgroundColor = allOk ? "green" : "red";
-    }
-    
-    function updateBankOverrideMessage() {
-      const bankWarningsDiv = document.getElementById("bankWarningsDiv");
-      if (bankWarningsDiv && (overrides.length === statements.length && overrides.every(val => val))) {
-        if (!bankWarningsDiv.querySelector(".override-confirmation")) {
-          const msg = document.createElement("div");
-          msg.classList.add("override-confirmation", "mt-2", "font-bold", "text-red-700");
-          msg.innerText = "User has elected to proceed despite these warnings";
-          bankWarningsDiv.appendChild(msg);
-        }
-      }
-    }
-    
-    /*************************************
-     * Final Process Data Function
-     *************************************/
-    function processFinalData() {
-      document.getElementById("errorContainer").innerHTML = "";
-      if (!statements.every(st => st.entered)) { return; }
-    
-      // Compute bank-level totals and warnings
-      let sumIncome = [0, 0, 0], sumExpenses = [0, 0, 0];
-      statements.forEach(st => {
-        for (let m = 0; m < 3; m++) {
-          const inc = st.data[`0_${m}`] || 0;
-          sumIncome[m] += inc;
-          let exp = 0;
-          // Note: categories length is 6 (indexes 0-5); income is row 0, expenses are rows 1-5.
-          for (let r = 1; r < categories.length; r++) {
-            exp += st.data[`${r}_${m}`] || 0;
-          }
-          sumExpenses[m] += exp;
-        }
-      });
-      let bankWarnings = "";
-      let problemMonths = [];
-      for (let i = 0; i < 3; i++) {
-        if (sumExpenses[i] > sumIncome[i]) { problemMonths.push(dynamicMonths[i]); }
-      }
-      if (problemMonths.length > 0) {
-        if (problemMonths.length === 1) {
-          bankWarnings += `Expenses exceed income for month ${problemMonths[0]}.<br/>`;
-        } else if (problemMonths.length === 2) {
-          bankWarnings += `Expenses exceed income for months ${problemMonths[0]} and ${problemMonths[1]}.<br/>`;
-        } else {
-          bankWarnings += `Expenses exceed income for months ${problemMonths.join(", ")}.<br/>`;
-        }
-      }
-      for (let i = 0; i < 3; i++) {
-        const inc = sumIncome[i], exp = sumExpenses[i];
-        if (inc === 0 && exp === 0) {
-          bankWarnings += `No income or expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
-        } else if (inc === 0) {
-          bankWarnings += `No income entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
-        } else if (exp === 0) {
-          bankWarnings += `No expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
-        }
+        decisionMessage = "Neither gambling nor repayment costs indicate a financial distress scenario.";
       }
       
-      let combinedHTML = "";
-      if (bankWarnings) {
-        combinedHTML += `<div id="bankWarningsDiv" class="border border-red-400 bg-red-100 text-red-700 px-4 py-3 rounded relative w-full" style="margin-bottom:20px;">
-                           <strong class="font-bold">Please revisit your entries before proceeding:</strong><br/>
-                           ${bankWarnings}
-                         </div>`;
-        renderOverrideCheckboxes();
-      }
-    
-      // Stop timer and calculate average time per manually-entered bank
-      const totalSec = stopTimer();
-      let nBanksManual = statements.filter(st => !st.prepopulated).length;
-      if (nBanksManual < 1) { nBanksManual = 1; }
-      const timePerBank = (totalSec / 60) / nBanksManual;
-    
-      combinedHTML += `<div id="timerOverridePlaceholder" style="margin-top:20px;"></div>`;
-      document.getElementById("errorContainer").innerHTML = combinedHTML;
-    
-      renderTimerOverrideBox(timePerBank);
-    
-      const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
-      if (!(bankOverridesOk && timerOverrideAcknowledged)) {
-        const processBtn = document.getElementById("processDataBtn");
-        processBtn.disabled = true;
-        processBtn.style.backgroundColor = "red";
-        return;
-      }
-    
-      localStorage.setItem("affordabilityPage1Time", String(totalSec));
-      window.location.href = 'affordability-summary.html';
+      resultSummary += `
+        <div class='bg-yellow-100 p-4 mt-6'>
+          <h4 class='font-bold'>Decision:</h4>
+          <p>${decisionMessage}</p>
+        </div>
+      `;
+      
+      // Add confirmation checkbox and new "Submit Data" button
+      resultSummary += `
+        <div class='mt-4'>
+          <label class='inline-flex items-center'>
+            <input type='checkbox' id='finalConfirmCheckbox' class='form-checkbox h-5 w-5 text-green-600' onchange="document.getElementById('finalSubmitBtn').disabled = !this.checked;">
+            <span class='ml-2'>Are you sure you are ready to submit the decision to be processed in FLG?</span>
+          </label>
+        </div>
+        <button id='finalSubmitBtn' class='mt-4 bg-blue-600 text-white px-4 py-2 rounded-md w-full' disabled onclick="finalSubmit()">Submit Data</button>
+      `;
+      
+      // Display the summary in the statementForm container
+      document.getElementById("statementForm").innerHTML = resultSummary;
+      
+      // Optionally, update the processDataBtn text (if still visible)
+      const processBtn = document.getElementById("processDataBtn");
+      processBtn.innerText = "Submit Data";
     }
     
     /*************************************
-     * Render Override Checkboxes
+     * Final Submit Function (store JSON or redirect as needed)
+     *************************************/
+    function finalSubmit() {
+      // Example: store calculated results in a JSON structure (could be sent to your back‑end)
+      const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
+      // Assume calculateAveragesAndDecision() was just run and results are in the DOM.
+      // You could re‐calculate here or capture the displayed values.
+      const results = {
+        averageIncome: document.querySelector(".bg-white p:nth-child(2)").innerText,
+        averageExpenses: document.querySelector(".bg-white p:nth-child(3)").innerText,
+        averageGambling: document.querySelector(".bg-white p:nth-child(4)").innerText,
+        averageDisposableIncome: document.querySelector(".bg-white p:nth-child(5)").innerText,
+        gamblingPercentIncome: document.querySelector(".bg-white p:nth-child(6)").innerText,
+        gamblingPercentDisposable: document.querySelector(".bg-white p:nth-child(7)").innerText,
+        loanRepaymentPercent: document.querySelector(".bg-white p:nth-child(8)").innerText,
+        decision: document.querySelector(".bg-yellow-100 p").innerText
+      };
+      console.log("Final Submission JSON:", results);
+      // Here you could send the results JSON to your FLG endpoint, e.g.:
+      // fetch('/submit', { method: 'POST', body: JSON.stringify(results) })
+      alert("Data submitted. Check console for JSON output.");
+    }
+    
+    /*************************************
+     * Render Override Checkboxes (for timer/other warnings)
      *************************************/
     function renderOverrideCheckboxes() {
       overrides = new Array(statements.length).fill(false);
@@ -533,6 +447,39 @@
           btnContainer.appendChild(label);
         }
       });
+    }
+    
+    /*************************************
+     * Check All Overrides Function
+     *************************************/
+    function checkAllOverrides() {
+      const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
+      const allOk = bankOverridesOk && timerOverrideAcknowledged;
+      updateBankOverrideMessage();
+      const processBtn = document.getElementById("processDataBtn");
+      processBtn.disabled = !allOk;
+      processBtn.style.backgroundColor = allOk ? "green" : "red";
+    }
+    
+    function updateBankOverrideMessage() {
+      const bankWarningsDiv = document.getElementById("bankWarningsDiv");
+      if (bankWarningsDiv && (overrides.length === statements.length && overrides.every(val => val))) {
+        if (!bankWarningsDiv.querySelector(".override-confirmation")) {
+          const msg = document.createElement("div");
+          msg.classList.add("override-confirmation", "mt-2", "font-bold", "text-red-700");
+          msg.innerText = "User has elected to proceed despite these warnings";
+          bankWarningsDiv.appendChild(msg);
+        }
+      }
+    }
+    
+    /*************************************
+     * Final Process Data Function (now triggers summary calculation)
+     *************************************/
+    function processFinalData() {
+      // Before calculating summary, you might still run timer override checks etc.
+      // For this example we assume all warnings are resolved and all data are entered.
+      calculateAveragesAndDecision();
     }
     
     /*************************************
@@ -565,7 +512,7 @@
     }
     
     /*************************************
-     * On DOMContentLoaded: Force logout then check session, set timer display, etc.
+     * On DOMContentLoaded: Force logout then check session, etc.
      *************************************/
     window.addEventListener("DOMContentLoaded", () => {
       forceLogout();
@@ -620,10 +567,11 @@
     <!-- Error / Warning Container -->
     <div id="errorContainer" class="w-full"></div>
     
-    <!-- Process Data Button -->
+    <!-- Process Data Button (will later trigger summary and then final submission) -->
     <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md w-full" disabled onclick="processFinalData()">
       Process Data
     </button>
   </div>
 </body>
 </html>
+
