@@ -23,12 +23,25 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
-    /* Ensure full width for error/timer/override containers */
+    /* Full-width for error/timer/override containers */
     #errorContainer, #bankWarningsDiv, #timerOverrideDiv {
       width: 100%;
     }
     #errorContainer {
       margin-bottom: 20px;
+    }
+    /* Styling for the summary table */
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .summary-table td, .summary-table th {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+    .summary-table th {
+      text-align: left;
+      background-color: #f9f9f9;
     }
   </style>
   
@@ -37,7 +50,7 @@
      * Force Logout on Page Load to Require Re‑Login
      *************************************/
     function forceLogout() {
-      // This call should clear any persistent token – adjust the endpoint as needed.
+      // Adjust the logout URL as needed.
       fetch("https://web-production-15e92.up.railway.app/logout", { credentials: 'include' })
         .then(() => console.log("Forced logout"))
         .catch(err => console.error("Error during forced logout:", err));
@@ -58,7 +71,7 @@
     /*************************************
      * Global Variables and Categories (6 rows only)
      *************************************/
-    // Categories: row 0 = Income; rows 1–4 = expenses (excluding gambling); row 5 = Gambling Expenditure
+    // Categories: row 0 = Income; rows 1–4 = expenses; row 5 = Gambling Expenditure.
     const categories = [
       "Income",
       "Rent/Mortgage",
@@ -68,8 +81,8 @@
       "Gambling Expenditure"
     ];
     
-    let dynamicMonths = []; // Should be set when fetching data (3 months expected)
-    let statements = [];    // Array of bank statement objects (each with a .data object using keys like "0_0", "1_2", etc.)
+    let dynamicMonths = []; // Set upon fetching data (expect 3 months)
+    let statements = [];    // Each bank's data (keys like "0_0", "1_2", etc.)
     let priorInputData = "";
     let overrides = [];
     let timerOverrideAcknowledged = false;
@@ -107,7 +120,7 @@
     }
     
     /*************************************
-     * Save Data Function (called on blur or input)
+     * Save Data Function (on blur)
      *************************************/
     function saveData(statementIndex, rowIndex, monthIndex) {
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
@@ -122,7 +135,7 @@
         overrides[statementIndex] = false;
         checkAllOverrides();
       }
-      // Mark this bank as having data entered:
+      // Mark bank as entered:
       statements[statementIndex].entered = true;
       checkProcessButton();
     }
@@ -182,7 +195,7 @@
             file: statementUrlsArr[index],
             entered: false,
             prepopulated: false,
-            data: {}  // keys like "0_0", "1_2", etc.
+            data: {}
           }));
           createStatementLinks();
     
@@ -212,7 +225,7 @@
         viewLink.classList.add("text-blue-500", "underline");
         viewLink.onclick = (e) => { e.preventDefault(); window.open(statement.file, "_blank"); };
     
-        // Button container for entering data and tick mark
+        // Button container for "Enter Data" and tick mark
         const btnContainer = document.createElement("div");
         btnContainer.classList.add("btn-container", "ml-4", "mt-2", "flex", "items-center");
     
@@ -278,10 +291,9 @@
     }
     
     /*************************************
-     * Summarize Data for a Bank (per bank tick mark update)
+     * Mark a Bank as Complete (update tick and button)
      *************************************/
     function summarizeData(statementIndex) {
-      // This function can mark a bank as complete and update the button state.
       const btnContainer = document.querySelectorAll("#bankStatements .btn-container")[statementIndex];
       const enterDataBtn = btnContainer.querySelector("button");
       enterDataBtn.innerText = "Edit Data";
@@ -294,7 +306,7 @@
     }
     
     /*************************************
-     * Check Process Button State (enable summary if all banks complete)
+     * Check Process Button State
      *************************************/
     function checkProcessButton() {
       const allEntered = statements.every(statement => statement.entered);
@@ -304,26 +316,23 @@
     }
     
     /*************************************
-     * Calculate Averages, Analysis, and Decision
+     * Calculate Averages, Analysis, and Build Decision UI
      *************************************/
     function calculateAveragesAndDecision() {
-      // Calculate averages across banks and months.
       const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
       
-      // For each bank and each month, sum the relevant rows.
+      // Sum each bank and each month for Income (row 0), Expenses (rows 1-4) and Gambling (row 5)
       statements.forEach(statement => {
         for (let m = 0; m < nMonths; m++) {
           const income = parseFloat(statement.data[`0_${m}`]) || 0;
           totalIncome += income;
-          // Sum rows 1 to 4 for expenses (excluding gambling)
           let expenses = 0;
           for (let r = 1; r <= 4; r++) {
             expenses += parseFloat(statement.data[`${r}_${m}`]) || 0;
           }
           totalExpenses += expenses;
-          // Gambling expenditure is row 5
           const gambling = parseFloat(statement.data[`5_${m}`]) || 0;
           totalGambling += gambling;
         }
@@ -332,93 +341,190 @@
       const avgIncome = totalIncome / (nBanks * nMonths);
       const avgExpenses = totalExpenses / (nBanks * nMonths);
       const avgGambling = totalGambling / (nBanks * nMonths);
-      // Average Disposable Income = avgIncome - avgExpenses + avgGambling
       const avgDisposableIncome = avgIncome - avgExpenses + avgGambling;
       
-      // Calculate percentages (guard against division by zero)
+      // Percentages (guard against division by zero)
       const gamblingAsIncomePercent = avgIncome > 0 ? (avgGambling / avgIncome) * 100 : 0;
       const gamblingAsDisposableIncomePercent = avgDisposableIncome > 0 ? (avgGambling / avgDisposableIncome) * 100 : 0;
       const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
       const loanRepaymentPercent = avgDisposableIncome > 0 ? (monthlyRepayment / avgDisposableIncome) * 100 : 0;
       
-      // Build result summary HTML
-      let resultSummary = `
-        <div class='bg-white p-4 mt-6 shadow-md'>
-          <h3 class='text-xl font-bold'>Calculated Averages and Analysis</h3>
-          <p>Average Income: £${formatNumericValue(avgIncome)} per month</p>
-          <p>Average Expenses (excluding gambling): £${formatNumericValue(avgExpenses)} per month</p>
-          <p>Average Gambling: £${formatNumericValue(avgGambling)} per month</p>
-          <p>Average Disposable Income: £${formatNumericValue(avgDisposableIncome)} per month</p>
-          <p>Gambling as % of Total Income: ${formatNumericValue(gamblingAsIncomePercent)}%</p>
-          <p>Gambling as % of Total Disposable Income: ${formatNumericValue(gamblingAsDisposableIncomePercent)}%</p>
-          <p>Loan Repayments as % of Disposable Income: ${formatNumericValue(loanRepaymentPercent)}%</p>
+      // Build summary table (2 columns: label and value)
+      let summaryHTML = `
+        <div class="bg-white p-4 mt-6 shadow-md">
+          <h3 class="text-xl font-bold mb-4">Calculated Averages and Analysis</h3>
+          <table class="summary-table">
+            <tr>
+              <th>Average Income</th>
+              <td>£${formatNumericValue(avgIncome)} per month</td>
+            </tr>
+            <tr>
+              <th>Average Expenses (excl. gambling)</th>
+              <td>£${formatNumericValue(avgExpenses)} per month</td>
+            </tr>
+            <tr>
+              <th>Average Gambling</th>
+              <td>£${formatNumericValue(avgGambling)} per month</td>
+            </tr>
+            <tr>
+              <th>Average Disposable Income</th>
+              <td>£${formatNumericValue(avgDisposableIncome)} per month</td>
+            </tr>
+            <tr>
+              <th>Gambling as % of Income</th>
+              <td>${formatNumericValue(gamblingAsIncomePercent)}%</td>
+            </tr>
+            <tr>
+              <th>Gambling as % of Disposable Income</th>
+              <td>${formatNumericValue(gamblingAsDisposableIncomePercent)}%</td>
+            </tr>
+            <tr>
+              <th>Loan Repayments as % of Disposable Income</th>
+              <td>${formatNumericValue(loanRepaymentPercent)}%</td>
+            </tr>
+          </table>
         </div>
       `;
       
-      // Determine decision message based on criteria
-      let decisionMessage = "";
+      // Determine affordability decision based on thresholds
+      let affordabilityDecision = "";
+      let decisionReason = "";
       if (gamblingAsIncomePercent > 15) {
-        decisionMessage = "Gambling exceeds 15% of income, indicating financial risk.";
+        affordabilityDecision = "Unaffordable";
+        decisionReason = "Gambling exceeds 15% of income, indicating financial risk.";
       } else if (gamblingAsIncomePercent >= 10 && gamblingAsIncomePercent <= 14 && loanRepaymentPercent > 50) {
-        decisionMessage = "Gambling between 10–14% and repayment exceeds 50% of disposable income.";
+        affordabilityDecision = "Unaffordable";
+        decisionReason = "Gambling between 10–14% and repayment exceeds 50% of disposable income.";
       } else if (gamblingAsIncomePercent < 10 && loanRepaymentPercent > 65) {
-        decisionMessage = "Gambling is below 10%, but repayment cost is over 65% of disposable income.";
+        affordabilityDecision = "Unaffordable";
+        decisionReason = "Gambling is below 10%, but repayment cost is over 65% of disposable income.";
       } else {
-        decisionMessage = "Neither gambling nor repayment costs indicate a financial distress scenario.";
+        affordabilityDecision = "Affordable";
+        decisionReason = "Neither gambling nor repayment costs indicate financial distress.";
       }
       
-      resultSummary += `
-        <div class='bg-yellow-100 p-4 mt-6'>
-          <h4 class='font-bold'>Decision:</h4>
-          <p>${decisionMessage}</p>
+      // Build decision box (blue box) with bold decision and reason
+      let decisionHTML = `
+        <div class="bg-blue-100 border border-blue-400 text-blue-800 p-4 rounded relative mt-6">
+          <h4 class="font-bold text-lg">Decision: ${affordabilityDecision}</h4>
+          <p>${decisionReason}</p>
         </div>
       `;
       
-      // Add confirmation checkbox and new "Submit Data" button
-      resultSummary += `
-        <div class='mt-4'>
-          <label class='inline-flex items-center'>
-            <input type='checkbox' id='finalConfirmCheckbox' class='form-checkbox h-5 w-5 text-green-600' onchange="document.getElementById('finalSubmitBtn').disabled = !this.checked;">
-            <span class='ml-2'>Are you sure you are ready to submit the decision to be processed in FLG?</span>
-          </label>
+      // Build "Process Decision" area with 3 checkboxes
+      let processDecisionHTML = `
+        <div class="bg-gray-50 p-4 mt-6 border rounded">
+          <h4 class="font-bold mb-2">Process Decision</h4>
+          <div class="mb-2">
+            <label class="inline-flex items-center">
+              <input type="radio" name="decisionOption" value="default" onchange="checkDecisionOptions()" class="form-radio h-5 w-5 text-green-600">
+              <span class="ml-2">Submit in line with decision above</span>
+            </label>
+          </div>
+          <div class="mb-2">
+            <label class="inline-flex items-center">
+              <input type="radio" name="decisionOption" value="override" onchange="checkDecisionOptions()" class="form-radio h-5 w-5 text-green-600">
+              <span class="ml-2">Override and submit as affordable/unaffordable</span>
+            </label>
+          </div>
+          <div class="mb-2">
+            <label class="inline-flex items-center">
+              <input type="radio" name="decisionOption" value="review" onchange="checkDecisionOptions()" class="form-radio h-5 w-5 text-green-600">
+              <span class="ml-2">More information required</span>
+            </label>
+          </div>
+          <div id="reviewCommentContainer" class="mt-2" style="display:none;">
+            <label class="block mb-1 font-medium">Please enter reason for review:</label>
+            <input type="text" id="reviewComment" class="border p-2 w-full rounded-md" placeholder="Enter reason here">
+          </div>
+          <button id="finalSubmitBtn" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md w-full" disabled onclick="finalSubmitDecision()">Submit Decision</button>
         </div>
-        <button id='finalSubmitBtn' class='mt-4 bg-blue-600 text-white px-4 py-2 rounded-md w-full' disabled onclick="finalSubmit()">Submit Data</button>
       `;
       
-      // Display the summary in the statementForm container
-      document.getElementById("statementForm").innerHTML = resultSummary;
+      // Combine all HTML into a summary section
+      let combinedHTML = summaryHTML + decisionHTML + processDecisionHTML;
       
-      // Optionally, update the processDataBtn text (if still visible)
+      // Replace the content of the statementForm container with the summary/decision UI
+      document.getElementById("statementForm").innerHTML = combinedHTML;
+      
+      // Update the Process Data button text to "Submit Data" (if still visible)
       const processBtn = document.getElementById("processDataBtn");
       processBtn.innerText = "Submit Data";
     }
     
     /*************************************
-     * Final Submit Function (store JSON or redirect as needed)
+     * Check Decision Options to enable final submission
      *************************************/
-    function finalSubmit() {
-      // Example: store calculated results in a JSON structure (could be sent to your back‑end)
-      const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
-      // Assume calculateAveragesAndDecision() was just run and results are in the DOM.
-      // You could re‐calculate here or capture the displayed values.
-      const results = {
-        averageIncome: document.querySelector(".bg-white p:nth-child(2)").innerText,
-        averageExpenses: document.querySelector(".bg-white p:nth-child(3)").innerText,
-        averageGambling: document.querySelector(".bg-white p:nth-child(4)").innerText,
-        averageDisposableIncome: document.querySelector(".bg-white p:nth-child(5)").innerText,
-        gamblingPercentIncome: document.querySelector(".bg-white p:nth-child(6)").innerText,
-        gamblingPercentDisposable: document.querySelector(".bg-white p:nth-child(7)").innerText,
-        loanRepaymentPercent: document.querySelector(".bg-white p:nth-child(8)").innerText,
-        decision: document.querySelector(".bg-yellow-100 p").innerText
-      };
-      console.log("Final Submission JSON:", results);
-      // Here you could send the results JSON to your FLG endpoint, e.g.:
-      // fetch('/submit', { method: 'POST', body: JSON.stringify(results) })
-      alert("Data submitted. Check console for JSON output.");
+    function checkDecisionOptions() {
+      const decisionOptions = document.getElementsByName("decisionOption");
+      let selected = "";
+      for (let opt of decisionOptions) {
+        if (opt.checked) {
+          selected = opt.value;
+          break;
+        }
+      }
+      const reviewContainer = document.getElementById("reviewCommentContainer");
+      const finalSubmitBtn = document.getElementById("finalSubmitBtn");
+      if (selected === "review") {
+        reviewContainer.style.display = "block";
+      } else {
+        reviewContainer.style.display = "none";
+      }
+      // Enable final submit only if one option is selected; if review is chosen, ensure comment is non-empty.
+      if (selected === "review") {
+        const comment = document.getElementById("reviewComment").value.trim();
+        finalSubmitBtn.disabled = (comment === "");
+      } else {
+        finalSubmitBtn.disabled = (selected === "");
+      }
+    }
+    
+    // Also check decision options on input change in review comment
+    function checkReviewComment() {
+      checkDecisionOptions();
     }
     
     /*************************************
-     * Render Override Checkboxes (for timer/other warnings)
+     * Final Submit Decision Function
+     *************************************/
+    function finalSubmitDecision() {
+      // Determine which option is selected and capture decision accordingly.
+      const decisionOptions = document.getElementsByName("decisionOption");
+      let selected = "";
+      for (let opt of decisionOptions) {
+        if (opt.checked) {
+          selected = opt.value;
+          break;
+        }
+      }
+      let finalDecision = "";
+      if (selected === "default" || selected === "override") {
+        // Use the computed decision from summary (read from decision box header)
+        const decisionHeader = document.querySelector(".bg-blue-100 h4").innerText;
+        // decisionHeader is like "Decision: Affordable" so extract the word after colon.
+        finalDecision = decisionHeader.split(":")[1].trim();
+      } else if (selected === "review") {
+        const comment = document.getElementById("reviewComment").value.trim();
+        finalDecision = "Review - " + comment;
+      }
+      // Build JSON result (example)
+      const results = {
+        averageIncome: document.querySelector(".summary-table tr:nth-child(1) td").innerText,
+        averageExpenses: document.querySelector(".summary-table tr:nth-child(2) td").innerText,
+        averageGambling: document.querySelector(".summary-table tr:nth-child(3) td").innerText,
+        averageDisposableIncome: document.querySelector(".summary-table tr:nth-child(4) td").innerText,
+        gamblingPercentIncome: document.querySelector(".summary-table tr:nth-child(5) td").innerText,
+        gamblingPercentDisposable: document.querySelector(".summary-table tr:nth-child(6) td").innerText,
+        loanRepaymentPercent: document.querySelector(".summary-table tr:nth-child(7) td").innerText,
+        decision: finalDecision
+      };
+      console.log("Final Submission Decision JSON:", results);
+      alert("Decision submitted. Check console for JSON output.");
+    }
+    
+    /*************************************
+     * Render Override Checkboxes (if needed)
      *************************************/
     function renderOverrideCheckboxes() {
       overrides = new Array(statements.length).fill(false);
@@ -474,11 +580,10 @@
     }
     
     /*************************************
-     * Final Process Data Function (now triggers summary calculation)
+     * Final Process Data Function (trigger summary/decision UI)
      *************************************/
     function processFinalData() {
-      // Before calculating summary, you might still run timer override checks etc.
-      // For this example we assume all warnings are resolved and all data are entered.
+      // We assume all banks have been entered and warnings resolved.
       calculateAveragesAndDecision();
     }
     
@@ -512,12 +617,19 @@
     }
     
     /*************************************
-     * On DOMContentLoaded: Force logout then check session, etc.
+     * On DOMContentLoaded: Force logout then check session, set timer display, etc.
      *************************************/
     window.addEventListener("DOMContentLoaded", () => {
       forceLogout();
       checkSession();
       document.getElementById("timerDisplay").innerText = "Timer: 0:00:00";
+    });
+    
+    // Add event listener for review comment input changes
+    document.addEventListener("input", (e) => {
+      if(e.target && e.target.id === "reviewComment") {
+        checkReviewComment();
+      }
     });
   </script>
 </head>
@@ -567,11 +679,12 @@
     <!-- Error / Warning Container -->
     <div id="errorContainer" class="w-full"></div>
     
-    <!-- Process Data Button (will later trigger summary and then final submission) -->
+    <!-- Process Data Button (remains until summary is generated) -->
     <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md w-full" disabled onclick="processFinalData()">
       Process Data
     </button>
   </div>
 </body>
 </html>
+
 
