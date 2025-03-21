@@ -133,7 +133,7 @@
     }
     // New secure upload: Get a presigned URL from backend and then PUT the PDF blob
     function uploadScreenshotSecure(pdfBlob, filename) {
-      return fetch(`/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
+      return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
       .then(resp => resp.json())
       .then(data => {
         if(data.error) {
