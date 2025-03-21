@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Affordability Assessment</title>
-  
+
   <!-- Favicon snippets -->
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -131,7 +131,6 @@
     /*************************************
      * Global Variables
      *************************************/
-    // 6 categories only
     const categories = [
       "Income",
       "Rent/Mortgage",
@@ -148,7 +147,7 @@
     let startTime = null;
     let timerInterval = null;
     let totalTimeSpentSeconds = 0;
-    let finalProcessingInitiated = false; // CHANGE #5: To track if Process Data has been pressed once already
+    let finalProcessingInitiated = false;
 
     // For final decision
     let finalDecision = "";
@@ -206,7 +205,7 @@
       statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = val;
       inputElem.value = formatNumericValue(val);
 
-      // If user changes data, remove any override for that bank (CHANGE #4)
+      // If user changes data, remove any override for that bank
       const cb = document.getElementById("override_" + statementIndex);
       if (cb && cb.checked) {
         cb.checked = false;
@@ -231,7 +230,7 @@
       overrides = [];
       priorInputData = "";
       timerOverrideAcknowledged = false;
-      finalProcessingInitiated = false; // RESET final processing flag
+      finalProcessingInitiated = false;
 
       if (timerInterval) clearInterval(timerInterval);
       startTime = null;
@@ -241,7 +240,7 @@
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = true;
       processBtn.style.backgroundColor = "red";
-      processBtn.innerText = "Process Data"; // Reset button text
+      processBtn.innerText = "Process Data";
     }
 
     /*************************************
@@ -355,7 +354,6 @@
 
     /*************************************
      * Create Load Prior Input Button
-     * CHANGE #1: Adjust text on first press and disable button afterward
      *************************************/
     function createLoadPriorButton() {
       if (document.getElementById("loadPriorBtn")) return;
@@ -408,13 +406,12 @@
         <button onclick='uploadBankData(${statementIndex})'
                 class='mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-full'>
           Upload data for this bank to summary before processing
-        </button>`;
+        </button>
+      `;
 
       formContainer.innerHTML = table;
     }
 
-    // CHANGE #3: Called when user clicks "Upload data for this bank"
-    // Remove any existing "Submit despite warning" checkbox if present.
     function uploadBankData(statementIndex) {
       statements[statementIndex].entered = true;
       const btnContainer = document.querySelectorAll("#bankStatements .btn-container")[statementIndex];
@@ -424,21 +421,20 @@
       const tickSpan = document.getElementById("tick_" + statementIndex);
       tickSpan.innerText = "✔";
       tickSpan.style.color = "green";
-      
-      // Remove existing override checkbox and label if they exist
+
+      // Remove existing override checkbox if present
       const existingOverride = document.getElementById("override_" + statementIndex);
       if (existingOverride) {
         const label = existingOverride.nextElementSibling;
         existingOverride.remove();
         if (label) label.remove();
       }
-      
+
       checkProcessButton();
     }
 
     /*************************************
      * Load Prior Input Data
-     * CHANGE #1: On first press, load data then update button text, disable it, and change color to blue.
      *************************************/
     function loadPriorInputData() {
       if (!priorInputData) {
@@ -449,7 +445,7 @@
       // Only execute if button is not already disabled
       if (!loadPriorBtn.disabled) {
         const fields = priorInputData.split(",").map(f => f.trim());
-        const groupSize = 19; // 1 bank name + (6 categories * 3 months) = 19
+        const groupSize = 19; // 1 bank name + 18 numeric items
 
         for (let i = 0; i < fields.length; i += groupSize) {
           const group = fields.slice(i, i + groupSize);
@@ -459,6 +455,7 @@
           const foundIndex = statements.findIndex(s => s.bank.toLowerCase() === bankNameFromData.toLowerCase());
           if (foundIndex !== -1) {
             statements[foundIndex].prepopulated = true;
+            // 6 categories x 3 months = 18 numeric
             for (let row = 0; row < categories.length; row++) {
               for (let month = 0; month < 3; month++) {
                 const fieldIndex = 1 + (row * 3) + month;
@@ -479,8 +476,8 @@
             }
           }
         }
-        // Update button text, disable it and change color to blue (CHANGE #1)
-        loadPriorBtn.innerText = "Data has been loaded to bank data as relevant. If you want to reload, please start again and Fetch Data for this Lead ID again";
+        // Update button text, disable it and change color
+        loadPriorBtn.innerText = "Data has been loaded. If you want to reload, please Fetch Data again for this Lead ID";
         loadPriorBtn.disabled = true;
         loadPriorBtn.classList.remove("bg-green-600");
         loadPriorBtn.classList.add("bg-blue-600");
@@ -505,9 +502,28 @@
       const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
       const allOk = bankOverridesOk && timerOverrideAcknowledged;
       updateBankOverrideMessage();
+
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = !allOk;
       processBtn.style.backgroundColor = allOk ? "green" : "red";
+
+      // Also check finalSubmitBtn if it exists
+      const finalSubmitBtn = document.getElementById("finalSubmitBtn");
+      if (finalSubmitBtn) {
+        const decisionOptions = document.getElementsByName("decisionOption");
+        let selected = "";
+        for (let opt of decisionOptions) {
+          if (opt.checked) { selected = opt.value; break; }
+        }
+        const reviewComment = document.getElementById("reviewComment");
+        const commentVal = reviewComment ? reviewComment.value.trim() : "";
+        // finalSubmitBtn is disabled if not all overrides checked, or no decision selected, or "review" with empty comment
+        if (!allOk || selected === "" || (selected === "review" && !commentVal)) {
+          finalSubmitBtn.disabled = true;
+        } else {
+          finalSubmitBtn.disabled = false;
+        }
+      }
     }
 
     function renderOverrideCheckboxes() {
@@ -605,14 +621,13 @@
     }
 
     /*************************************
-     * Final Decision Flow
-     * CHANGE #5: Process Data button behavior (requires a second press if warnings exist)
+     * Process Data (Final Summary)
      *************************************/
     function processFinalData() {
       // Only proceed if all banks are entered
       if (!statements.every(st => st.entered)) return;
 
-      // If bank warnings exist and this is the first press, change button to require confirmation
+      // If bank warnings exist and this is the first press, require a second press
       if (!finalProcessingInitiated && document.getElementById("bankWarningsDiv") && document.getElementById("bankWarningsDiv").innerHTML !== "") {
         finalProcessingInitiated = true;
         const processBtn = document.getElementById("processDataBtn");
@@ -621,13 +636,11 @@
         return; // Wait for second press
       }
 
-      // Otherwise, show final summary and decision
-      // Clear any previous warnings/timer override
+      // Show final summary and decision
       document.getElementById("errorContainer").innerHTML = "";
-      // Clear any previous summary/decision
       document.getElementById("statementForm").innerHTML = "";
       showSummaryAndDecision();
-      // Hide Process Data button as it's no longer needed
+      // Hide Process Data button
       document.getElementById("processDataBtn").style.display = "none";
     }
 
@@ -652,17 +665,23 @@
       const avgIncome = totalIncome / (nBanks * nMonths);
       const avgExpenses = totalExpenses / (nBanks * nMonths);
       const avgGambling = totalGambling / (nBanks * nMonths);
-      const avgDisposable = avgIncome - avgExpenses + avgGambling;
-      const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
+      let avgDisposable = avgIncome - avgExpenses + avgGambling;
 
-      const gambPctIncome = avgIncome > 0 ? (avgGambling / avgIncome) * 100 : 0;
-      const gambPctDisposable = avgDisposable > 0 ? (avgGambling / avgDisposable) * 100 : 0;
-      const loanRepayPct = avgDisposable > 0 ? (monthlyRepayment / avgDisposable) * 100 : 0;
+      // if it's negative, that's fine for display, but for % calculations we treat <=0 as 0
+      const safeDisposable = (avgDisposable > 0) ? avgDisposable : 0;
+      const safeIncome = (avgIncome > 0) ? avgIncome : 0;
+
+      // if denominator is zero or negative, set ratio to 0
+      const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
+      const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
+      const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
+      const loanRepayPct = safeDisposable > 0 ? (monthlyRepayment / safeDisposable) * 100 : 0;
 
       // 2) Build data warnings
       let bankWarnings = "";
       let sumIncomeArr = Array(nMonths).fill(0);
       let sumExpensesArr = Array(nMonths).fill(0);
+
       statements.forEach(st => {
         for (let m = 0; m < nMonths; m++) {
           sumIncomeArr[m] += (st.data[`0_${m}`] || 0);
@@ -694,13 +713,13 @@
         bankWarnings += `Expenses exceed income for months ${problemMonths.join(", ")}.<br/>`;
       }
 
-      // 3) Stop timer, show time override
-      const totalSec = stopTimer();
+      // 3) Do NOT stop timer here. Just measure how long so far
+      const totalSec = Math.floor((new Date() - startTime) / 1000);
       let nBanksManual = statements.filter(st => !st.prepopulated).length;
       if (nBanksManual < 1) nBanksManual = 1;
       const timePerBank = (totalSec / 60) / nBanksManual;
 
-      // 4) If warnings exist, show red box + override checkboxes (these will now appear above the final summary)
+      // 4) If warnings exist, show red box + override checkboxes
       let warningsHTML = "";
       if (bankWarnings) {
         warningsHTML = `
@@ -723,12 +742,10 @@
           </div>
         </div>
       `;
-
-      // Insert warnings and time override into errorContainer (which is now positioned above the final summary)
       document.getElementById("errorContainer").innerHTML = warningsHTML + timeHTML;
       renderTimerOverrideBox(timePerBank);
 
-      // 6) Determine decision (blue box)
+      // 6) Determine auto-decision
       let decision = "";
       let reason = "";
       if (gambPctIncome > 15) {
@@ -752,20 +769,29 @@
         </div>
       `;
 
-      // 7) Build final summary table (2 columns)
+      // 7) Build final summary table
+      // Show numeric with 2 decimals, but % with no decimals in HTML
+      const dispAvgIncome = `£${formatNumericValue(avgIncome)}`;
+      const dispAvgExpenses = `£${formatNumericValue(avgExpenses)}`;
+      const dispAvgGambling = `£${formatNumericValue(avgGambling)}`;
+      const dispAvgDisposable = `£${formatNumericValue(avgDisposable)}`;
+      const dispGambPctIncome = `${Math.round(gambPctIncome)}%`;
+      const dispGambPctDisposable = `${Math.round(gambPctDisposable)}%`;
+      const dispLoanRepayPct = `${Math.round(loanRepayPct)}%`;
+
       let summaryHTML = `
         <table class="summary-table">
-          <tr><th>Average Income</th><td>£${formatNumericValue(avgIncome)} per month</td></tr>
-          <tr><th>Average Expenses (excl. gambling)</th><td>£${formatNumericValue(avgExpenses)} per month</td></tr>
-          <tr><th>Average Gambling</th><td>£${formatNumericValue(avgGambling)} per month</td></tr>
-          <tr><th>Average Disposable Income</th><td>£${formatNumericValue(avgDisposable)} per month</td></tr>
-          <tr><th>Gambling as % of Income</th><td>${formatNumericValue(gambPctIncome)}%</td></tr>
-          <tr><th>Gambling as % of Disposable Income</th><td>${formatNumericValue(gambPctDisposable)}%</td></tr>
-          <tr><th>Loan Repayments as % of Disposable Income</th><td>${formatNumericValue(loanRepayPct)}%</td></tr>
+          <tr><th>Average Income</th><td>${dispAvgIncome} per month</td></tr>
+          <tr><th>Average Expenses (excl. gambling)</th><td>${dispAvgExpenses} per month</td></tr>
+          <tr><th>Average Gambling</th><td>${dispAvgGambling} per month</td></tr>
+          <tr><th>Average Disposable Income</th><td>${dispAvgDisposable} per month</td></tr>
+          <tr><th>Gambling as % of Income</th><td>${dispGambPctIncome}</td></tr>
+          <tr><th>Gambling as % of Disposable Income</th><td>${dispGambPctDisposable}</td></tr>
+          <tr><th>Loan Repayments as % of Disposable Income</th><td>${dispLoanRepayPct}</td></tr>
         </table>
       `;
 
-      // 8) Build final process area (decision submission area)
+      // 8) Build final process area (decision submission)
       let processDecisionHTML = `
         <div class="bg-gray-50 p-4 mt-4 border rounded">
           <h4 class="font-bold mb-2">Process Decision</h4>
@@ -789,7 +815,7 @@
           </div>
           <div id="reviewCommentContainer" class="mt-2" style="display:none;">
             <label class="block mb-1 font-medium">Please enter reason for review:</label>
-            <input type="text" id="reviewComment" class="border p-2 w-full rounded-md" placeholder="Enter reason here">
+            <input type="text" id="reviewComment" class="border p-2 w-full rounded-md" placeholder="Enter reason here" oninput="checkDecisionOptions()">
           </div>
           <button id="finalSubmitBtn" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md w-full" disabled onclick="finalSubmitDecision()">
             Submit Decision
@@ -797,7 +823,7 @@
         </div>
       `;
 
-      // 9) Insert final summary, decision, and process area into statementForm (which now appears below the error container)
+      // 9) Insert final summary, decision, and process area
       const formDiv = document.getElementById("statementForm");
       formDiv.innerHTML = `
         <div class="bg-white p-4 mt-6 shadow-md">
@@ -826,15 +852,62 @@
       if (selected === "review") {
         reviewContainer.style.display = "block";
         const comment = document.getElementById("reviewComment").value.trim();
-        finalSubmitBtn.disabled = !comment;
+        finalSubmitBtn.disabled = !comment; // also need overrides check
       } else {
         reviewContainer.style.display = "none";
         finalSubmitBtn.disabled = (selected === "");
       }
+      checkAllOverrides(); // incorporate override checks
     }
 
-    function checkReviewComment() {
-      checkDecisionOptions();
+    /*************************************
+     * Build data6 and data7
+     *************************************/
+    function buildAffordabilityInput() {
+      // data6 => CSV with repeated blocks of 19 items:
+      // <bankName>, 18 numeric items
+      // (6 categories x 3 months = 18)
+      let arr = [];
+      statements.forEach(st => {
+        // bank name
+        arr.push(st.bank);
+        // numeric items (no thousands separators, 2 decimals)
+        for (let r = 0; r < categories.length; r++) {
+          for (let m = 0; m < 3; m++) {
+            let val = st.data[`${r}_${m}`] || 0;
+            arr.push(val.toFixed(2)); // e.g. "1234.56"
+          }
+        }
+      });
+      return arr.join(",");
+    }
+
+    function buildAffordabilityOutput(avgInc, avgExp, avgGamb, avgDisp, pctInc, pctDisp, pctLoan, decision, reason, timeMin) {
+      // data7 => 10 items:
+      // 1) avgInc(####.00)
+      // 2) avgExp(####.00)
+      // 3) avgGamb(####.00)
+      // 4) avgDisp(####.00)
+      // 5) pctInc(####.00%)
+      // 6) pctDisp(####.00%)
+      // 7) pctLoan(####.00%)
+      // 8) final decision
+      // 9) final reason
+      // 10) time in minutes (##.00)
+      const fmtNum = (val) => val.toFixed(2);           // e.g. 1234.56
+      const fmtPct = (val) => fmtNum(val) + "%";        // e.g. 50.00%
+      let items = [];
+      items.push(fmtNum(avgInc));
+      items.push(fmtNum(avgExp));
+      items.push(fmtNum(avgGamb));
+      items.push(fmtNum(avgDisp));
+      items.push(fmtPct(pctInc));
+      items.push(fmtPct(pctDisp));
+      items.push(fmtPct(pctLoan));
+      items.push(decision);
+      items.push(reason);
+      items.push(parseFloat(timeMin).toFixed(2)); // e.g. 12.34
+      return items.join(",");
     }
 
     /*************************************
@@ -856,17 +929,84 @@
       }
       const autoDecision = decBox.innerText.split(":")[1].trim();
       let finalDecision = "";
+      let finalReason = "";
+
       if (selected === "default") {
         finalDecision = autoDecision;
+        finalReason = "Used system recommended";
       } else if (selected === "override") {
         finalDecision = (autoDecision === "Affordable") ? "Unaffordable" : "Affordable";
+        finalReason = "Override from auto decision";
       } else if (selected === "review") {
         const comment = document.getElementById("reviewComment").value.trim();
-        finalDecision = "Review - " + comment;
+        finalDecision = "Review";
+        finalReason = comment || "";
       }
-      const results = { finalDecision };
-      console.log("Final Submission Decision JSON:", results);
-      showAlert("Decision submitted. Check console for JSON output.");
+
+      // Grab the same summary numbers we used in showSummaryAndDecision
+      // We'll re-calc quickly for data7
+      const nBanks = statements.length;
+      const nMonths = dynamicMonths.length;
+      let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
+      statements.forEach(st => {
+        for (let m = 0; m < nMonths; m++) {
+          totalIncome += (st.data[`0_${m}`] || 0);
+          let exp = 0;
+          for (let r = 1; r <= 4; r++) {
+            exp += (st.data[`${r}_${m}`] || 0);
+          }
+          totalExpenses += exp;
+          totalGambling += (st.data[`5_${m}`] || 0);
+        }
+      });
+      const avgIncome = (nBanks*nMonths > 0) ? (totalIncome / (nBanks*nMonths)) : 0;
+      const avgExpenses = (nBanks*nMonths > 0) ? (totalExpenses / (nBanks*nMonths)) : 0;
+      const avgGambling = (nBanks*nMonths > 0) ? (totalGambling / (nBanks*nMonths)) : 0;
+      const avgDisposable = avgIncome - avgExpenses + avgGambling;
+
+      const safeDisposable = (avgDisposable > 0) ? avgDisposable : 0;
+      const safeIncome = (avgIncome > 0) ? avgIncome : 0;
+
+      const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
+      const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
+      const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
+      const loanRepayPct = safeDisposable > 0 ? (monthlyRepayment / safeDisposable) * 100 : 0;
+
+      // Stop timer now
+      let finalSec = stopTimer();
+      let finalMin = (finalSec / 60);
+
+      // Build data6 (affordability_input) & data7 (affordability_output)
+      let data6 = buildAffordabilityInput();
+      let data7 = buildAffordabilityOutput(
+        avgIncome, avgExpenses, avgGambling, avgDisposable,
+        gambPctIncome, gambPctDisposable, loanRepayPct,
+        finalDecision, finalReason, finalMin
+      );
+
+      const leadId = document.getElementById("leadId").value.trim();
+      fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId,
+          data6,
+          data7
+        })
+      })
+      .then(resp => resp.json())
+      .then(respData => {
+        if (respData.error) {
+          showAlert("Error updating FLG: " + respData.error);
+        } else {
+          showAlert("FLG updated successfully!");
+        }
+      })
+      .catch(err => {
+        console.error("Error updating FLG:", err);
+        showAlert("Error updating FLG. Check console for details.");
+      });
     }
 
     /*************************************
@@ -895,9 +1035,6 @@
         });
     }
 
-    /*************************************
-     * DOMContentLoaded
-     *************************************/
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
       document.getElementById("timerDisplay").innerText = "Timer: 0:00:00";
@@ -915,12 +1052,12 @@
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
     <!-- Top bar -->
     <div class="flex justify-between items-center mb-4">
-      <button id="returnMenuBtn" 
+      <button id="returnMenuBtn"
               onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'"
               class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
         Return to Main Menu
       </button>
-      <button id="loginBtn" 
+      <button id="loginBtn"
               onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
               class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
         Log in with Microsoft 365
@@ -970,7 +1107,7 @@
     <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
     <div id="bankStatements" class="mt-2"></div>
 
-    <!-- Error Container for Warnings & Timer Override (moved above the final summary as per CHANGE #2) -->
+    <!-- Error Container for Warnings & Timer Override -->
     <div id="errorContainer"></div>
 
     <!-- Statement Form (final summary and decision will be inserted here) -->
