@@ -1,0 +1,13 @@
+{
+    "base_lower_limit": 15,
+    "base_upper_limit": 45,
+    "additional_time_second_bank": 20,
+    "additional_time_third_bank": 15,
+    "additional_time_fourth_plus_bank": 10,
+    "warning_message_low": "Time per Bank Account to review and categorise data was only {time} minutes per bank – are you sure you reviewed everything carefully?",
+    "warning_message_high": "Time per Bank Account to review and categorise data was {time} minutes per bank – this is taking longer than the recommended range of {min} to {max} minutes per bank – please discuss any training requirements with your line manager",
+    "normal_message": "Time per Bank Account in the expected range of between {min} to {max} minutes to review and categorise",
+    "override_text_low": "Submit despite warning",
+    "override_text_high": "Submit despite warning",
+    "override_text_normal": "Acknowledge timing achieved"
+}
