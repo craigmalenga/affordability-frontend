@@ -1,130 +1,116 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Affordability Assessment</title>
   
-  <!-- Tailwind CSS -->
+  <!-- Favicon and CSS -->
+  <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <script src="https://cdn.tailwindcss.com"></script>
   
+  <style>
+    body {
+      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
+      background-size: cover;
+    }
+    .popup-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+    }
+  </style>
+  
   <script>
-    /*************************************
-     * Function to Format Numbers with Commas
-     *************************************/
-    function formatNumber(value) {
-      if (isNaN(value) || value === "" || value === null) return "";
-      return Number(value).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    function formatNumberInput(value) {
+      let num = parseFloat(value.replace(/,/g, ''));
+      if (isNaN(num)) return '';
+      return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    /*************************************
-     * Function to Parse Input Before Storing
-     *************************************/
-    function parseInput(value) {
-      if (!value) return 0.00;
-      return parseFloat(value.replace(/,/g, ""));
+    function validateAndFormatInput(input) {
+      input.value = formatNumberInput(input.value);
     }
 
-    /*************************************
-     * Function to Apply Formatting on User Input
-     *************************************/
-    function applyFormatting(event) {
-      let inputElem = event.target;
-      let rawValue = inputElem.value;
-      let formattedValue = formatNumber(parseInput(rawValue));
-      inputElem.value = formattedValue;
-    }
-
-    /*************************************
-     * Function to Load Data from FLG
-     *************************************/
     function fetchLeadData() {
       const leadId = document.getElementById("leadId").value.trim();
-      if (!leadId) { alert("Please enter a valid Lead ID."); return; }
-
-      fetch(`https://web-production-15e92.up.railway.app/api/flg_data/${leadId}`, { credentials: 'include' })
+      if (!leadId) {
+        alert("Please enter a valid Lead ID.");
+        return;
+      }
+      
+      fetch(`https://web-production-15e92.up.railway.app/api/flg_data/${leadId}`)
         .then(response => response.json())
         .then(data => {
-          if (data.error) { alert(data.error); return; }
-
+          if (data.error) {
+            showPopup("Unable to retrieve data - check Lead ID entered.");
+            return;
+          }
           document.getElementById("fullName").value = data.fullName || "";
+          document.getElementById("bankNames").value = data.bankNames || "";
           document.getElementById("periodCovered").value = data.periodCovered || "";
-
-          let tableFields = ["Income", "Rent/Mortgage", "Council Tax", "Utilities", "Credit Commitments", "Gambling Expenditure"];
-          let months = ["Mar-2025", "Apr-2025", "May-2025"];
-
-          tableFields.forEach((category, rowIndex) => {
-            months.forEach((_, monthIndex) => {
-              let cellId = `${rowIndex}_${monthIndex}`;
-              let fieldValue = parseInput(data[`data6_${cellId}`] || "0.00");  // Pull value, default to 0.00 if missing
-              document.getElementById(cellId).value = formatNumber(fieldValue); // Display formatted number
-            });
-          });
+          document.getElementById("monthlyRepayment").value = formatNumberInput(data.monthlyRepayment || "");
         })
-        .catch(err => {
-          console.error("Error fetching FLG data:", err);
-          alert("Unable to retrieve data - check Lead ID being entered and if issue persists, speak to a line manager.");
-        });
+        .catch(err => showPopup("Error fetching data. Try again later."));
+    }
+
+    function showPopup(message) {
+      const popup = document.createElement("div");
+      popup.className = "popup-message border border-red-500 rounded-lg text-center";
+      popup.innerHTML = `<p>${message}</p><button onclick="this.parentElement.remove()" class="bg-red-500 text-white px-4 py-2 mt-2 rounded-md">OK</button>`;
+      document.body.appendChild(popup);
     }
   </script>
 </head>
-
 <body class="bg-gray-100 p-6">
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
     
-    <h1 class="text-2xl font-bold text-center">Affordability Assessment</h1>
-
-    <label for="leadId" class="block mt-4 font-medium">Enter Lead ID:</label>
-    <div class="flex gap-2 mt-2">
-      <input type="text" id="leadId" class="border p-2 flex-1 rounded-md text-gray-600"/>
-      <button onclick="fetchLeadData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-        Fetch Data
+    <!-- Top Navigation -->
+    <div class="flex justify-between items-center mb-4">
+      <button onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+        Return to Main Menu
+      </button>
+      <button onclick="window.location.href='https://web-production-15e92.up.railway.app/login'" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+        Log in with Microsoft 365
       </button>
     </div>
-
+    
+    <!-- Logo -->
+    <div class="text-center mb-4">
+      <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true" alt="Company Logo" class="h-16 mx-auto mb-2"/>
+      <h1 class="text-2xl font-bold">Affordability Assessment</h1>
+    </div>
+    
+    <!-- Lead ID Section -->
+    <label class="block mt-4 font-medium">Enter Lead ID:</label>
+    <div class="flex gap-2 mt-2">
+      <input type="text" id="leadId" placeholder="123456789" class="border p-2 flex-1 rounded-md"/>
+      <button onclick="fetchLeadData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Fetch Data</button>
+    </div>
+    
+    <!-- Lead Details -->
     <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
     <label class="block mt-2">Full Name:</label>
     <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-
+    
+    <label class="block mt-2">Bank Accounts:</label>
+    <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
+    
     <label class="block mt-2">Period Covered:</label>
     <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-
-    <!-- Table for Data Entry -->
-    <h2 class="text-lg font-semibold mt-6">Bank Statement Data</h2>
-    <table class="w-full border-collapse border border-gray-300 mt-4">
-      <tr>
-        <th class="border p-2">Category</th>
-        <th class="border p-2">Mar-2025</th>
-        <th class="border p-2">Apr-2025</th>
-        <th class="border p-2">May-2025</th>
-      </tr>
-
-      <!-- Rows for Income, Rent, Utilities, etc. -->
-      <tr>
-        <td class="border p-2 font-semibold">Income</td>
-        <td class="border p-2"><input type="text" id="0_0" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-        <td class="border p-2"><input type="text" id="0_1" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-        <td class="border p-2"><input type="text" id="0_2" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-      </tr>
-      <tr>
-        <td class="border p-2 font-semibold">Rent/Mortgage</td>
-        <td class="border p-2"><input type="text" id="1_0" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-        <td class="border p-2"><input type="text" id="1_1" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-        <td class="border p-2"><input type="text" id="1_2" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-      </tr>
-      <tr>
-        <td class="border p-2 font-semibold">Council Tax</td>
-        <td class="border p-2"><input type="text" id="2_0" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-        <td class="border p-2"><input type="text" id="2_1" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-        <td class="border p-2"><input type="text" id="2_2" class="border p-2 w-full text-right" onblur="applyFormatting(event)"></td>
-      </tr>
-    </table>
-
-    <!-- Submit Button -->
+    
+    <label class="block mt-2">Monthly Repayments:</label>
+    <input type="text" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+    
+    <!-- Process Data Button -->
     <button class="mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-full">
       Process Data
     </button>
-
   </div>
 </body>
 </html>
