@@ -293,6 +293,34 @@
       alert("Prior input data loaded for matching bank accounts.");
     }
 
+    function checkSession() {
+      fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: 'include' })
+        .then(response => response.json())
+        .then(data => {
+          const loginBtn = document.querySelector("button[onclick*='login']");
+          const fetchDataBtn = document.getElementById("fetchDataBtn");
+          if(data.logged_in) {
+            loginBtn.innerText = "Logged in with Microsoft 365";
+            loginBtn.className = "bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700";
+            fetchDataBtn.disabled = false;
+            fetchDataBtn.style.backgroundColor = "green";
+          } else {
+            loginBtn.innerText = "Log in with Microsoft 365";
+            loginBtn.className = "bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700";
+            fetchDataBtn.disabled = true;
+            fetchDataBtn.style.backgroundColor = "red";
+          }
+        })
+        .catch(err => { 
+          console.error("Error checking session status:", err); 
+          const fetchDataBtn = document.getElementById("fetchDataBtn");
+          fetchDataBtn.disabled = true;
+          fetchDataBtn.style.backgroundColor = "red";
+        });
+    }
+    
+    window.addEventListener("DOMContentLoaded", checkSession);
+
     window.addEventListener("DOMContentLoaded", () => {
       document.getElementById("timerDisplay").innerText = "Timer: 0:00:00";
     });
@@ -314,9 +342,13 @@
         <label class="block font-medium">Enter Lead ID:</label>
         <div class="flex gap-2 mt-2">
           <input id="leadId" class="border p-2 flex-1 rounded-md text-gray-600"/>
-          <button onclick="fetchLeadData()" id="fetchDataBtn" class="bg-gray-400 text-white px-4 py-2 rounded-md">Fetch Data</button>
+          <button onclick="fetchLeadData()" id="fetchDataBtn" class="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-blue-700" disabled>
+            Fetch Data
+          </button>
         </div>
     
+
+
         <div id="timerDisplay" class="mt-4 font-semibold">Timer: 0:00:00</div>
     
         <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
