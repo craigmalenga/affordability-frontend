@@ -104,11 +104,13 @@
     /*************************************
      * Screenshot PDF & Secure S3 Upload Functions
      *************************************/
-    // Capture the full document as a multi-page PDF.
+    // Modified to capture the entire content from a dedicated container with id "pdfContent"
     function captureScreenshotPDF() {
-      debugLog("DEBUG: Starting screenshot capture using html2canvas.");
-      return html2canvas(document.documentElement, {
-        scrollY: 0,
+      debugLog("DEBUG: Starting full-page screenshot capture using html2canvas.");
+      return html2canvas(document.getElementById("pdfContent"), {
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
         useCORS: true,
         scale: 2
       }).then(canvas => {
@@ -118,7 +120,6 @@
         let pdf = new jsPDF('p', 'pt', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        // Calculate the image height in PDF dimensions.
         const imgWidth = pdfWidth;
         const imgHeight = (canvas.height * pdfWidth) / canvas.width;
         let heightLeft = imgHeight;
@@ -824,6 +825,10 @@
     }
     /*************************************
      * Final Submit Decision with Secure S3 Upload
+     * 
+     * Changes implemented:
+     * 1. When finalSubmitDecision() is triggered, the full-page PDF is captured (including final summary data)
+     * 2. The PDF is immediately uploaded to AWS to obtain the public URL before posting all data (data6, data7, data9)
      *************************************/
     function finalSubmitDecision() {
       const decisionOptions = document.getElementsByName("decisionOption");
@@ -886,7 +891,8 @@
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
       
-      // Capture the PDF, upload it, then update FLG with the screenshot URL (data9).
+      // NEW ORDER: First capture the full-page PDF (which includes final summary data), upload it to AWS to get the URL,
+      // and then post all data (data6, data7, and data9) together.
       captureScreenshotPDF()
       .then(pdfBlob => {
         const filename = generateFilename(leadId);
@@ -959,7 +965,8 @@
     <div id="alertMessage"></div>
     <button id="alertButton" onclick="closeAlert()">OK</button>
   </div>
-  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
+  <!-- Main container with id "pdfContent" so full-page capture includes all final summary data -->
+  <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
     <!-- Top bar -->
     <div class="flex justify-between items-center mb-4">
       <button id="returnMenuBtn"
