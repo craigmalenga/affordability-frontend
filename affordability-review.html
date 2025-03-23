@@ -16,6 +16,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- jsPDF library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- jsPDF-AutoTable plugin -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -119,7 +121,7 @@
     }
 
     /*************************************
-     * Show Processing Modal (Existing Alert Overlay)
+     * Show Processing Modal
      *************************************/
     function showProcessing() {
       const overlay = document.getElementById("alertOverlay");
@@ -127,7 +129,7 @@
       const alertMessage = document.getElementById("alertMessage");
       const alertButton = document.getElementById("alertButton");
       alertMessage.innerText = "Processing... Please wait.";
-      alertButton.style.display = "none";  // Hide the OK button during processing
+      alertButton.style.display = "none";
       overlay.style.display = "block";
       alertBox.style.display = "block";
     }
@@ -137,11 +139,11 @@
       const alertButton = document.getElementById("alertButton");
       overlay.style.display = "none";
       alertBox.style.display = "none";
-      alertButton.style.display = "block";  // Restore OK button
+      alertButton.style.display = "block";
     }
 
     /*************************************
-     * Improved PDF Capture Using html2canvas (Existing)
+     * Existing PDF Capture Function (html2canvas based)
      *************************************/
     function captureScreenshotPDF() {
       debugLog("DEBUG: Starting screenshot capture using html2canvas with improved scale.");
@@ -177,145 +179,61 @@
     }
 
     /*************************************
-     * NEW: Improved PDF Capture using jsPDF.html (just analysis & categorisations)
+     * NEW: PDF Generation using jsPDF-AutoTable
      *************************************/
-     function capturePDFwithJSPDFHTML() {
-        debugLog("DEBUG: Starting improved PDF capture (just analysis & categorisations)");
-      
-        return new Promise((resolve, reject) => {
-          const { jsPDF } = window.jspdf;
-          const pdf = new jsPDF('p', 'pt', 'a4');
-      
-          // 1. Locate the analysis section (assumed to be the parent container of .decision-box)
-          const analysisSection = document.querySelector(".decision-box")?.parentElement;
-          if (!analysisSection) {
-            return reject(new Error("Analysis section not found."));
-          }
-      
-          // 2. Create a dedicated container for the PDF content
-          const pdfContainer = document.createElement("div");
-          pdfContainer.style.width = "800px";  // Fixed width to control scaling
-          pdfContainer.style.fontFamily = "sans-serif";
-          pdfContainer.style.color = "#000";
-          pdfContainer.style.backgroundColor = "#fff";
-          pdfContainer.style.padding = "20px";
-      
-          // 3. Append a style element to enforce vertical centering and try to avoid splitting tables
-          const styleElem = document.createElement("style");
-          styleElem.innerHTML = `
-            table { 
-              border-collapse: collapse; 
-              page-break-inside: avoid; 
-            }
-            tr { 
-              page-break-inside: avoid; 
-              page-break-after: auto; 
-            }
-            td, th { 
-              vertical-align: middle !important; 
-              padding: 4px;
-            }
-            .no-break { page-break-inside: avoid; }
-          `;
-          pdfContainer.appendChild(styleElem);
-      
-          // 4. Add the Belmond logo.
-          // If the logo still doesn't show, consider converting it to a Base64 data URL.
-          const logoContainer = document.createElement("div");
-          logoContainer.style.width = "150px";
-          logoContainer.style.height = "auto";
-          logoContainer.style.marginBottom = "16px";
-          // Alternative method: using a background image
-          logoContainer.style.backgroundImage = "url('https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true')";
-          logoContainer.style.backgroundSize = "contain";
-          logoContainer.style.backgroundRepeat = "no-repeat";
-          logoContainer.style.backgroundPosition = "center";
-          // Uncomment the next line if using an <img> tag instead:
-          // logoContainer.innerHTML = `<img src="data:image/png;base64, YOUR_BASE64_DATA" style="width:150px; display:block; margin-bottom:16px;" />`;
-          pdfContainer.appendChild(logoContainer);
-      
-          // 5. Create the heading with the text "Affordability Assessment - " then [Name] and Lead ID
-          const fullName = document.getElementById("fullName").value.trim();
-          const leadId = document.getElementById("leadId").value.trim();
-          const heading = document.createElement("h2");
-          heading.innerText = `Affordability Assessment - ${fullName ? fullName + " - " : ""}${leadId}`;
-          heading.style.fontSize = "18pt";
-          heading.style.fontWeight = "bold";
-          heading.style.marginBottom = "16px";
-          pdfContainer.appendChild(heading);
-      
-          // 6. Clone the analysis section and remove any unwanted elements (like the finalSubmit button)
-          const clonedSection = analysisSection.cloneNode(true);
-          const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
-          if (processDecision) processDecision.remove();
-          pdfContainer.appendChild(clonedSection);
-      
-          // 7. Prevent generating a PDF if the content is blank
-          if (!pdfContainer.innerText.trim()) {
-            return reject(new Error("PDF content is blank."));
-          }
-      
-          // 8. Render the container into the PDF using jsPDF.html
-          pdf.html(pdfContainer, {
-            callback: function (pdf) {
-              debugLog("DEBUG: PDF generated successfully.");
-              const pdfBlob = pdf.output('blob');
-              resolve(pdfBlob);
-            },
-            x: 10,   // left margin in PDF
-            y: 10,   // top margin in PDF
-            width: 550, // content width in PDF points (adjust if needed)
-            html2canvas: {
-              scale: 0.55,  // set to 0.55 as requested for a "zoomed out" result
-              useCORS: true,
-              scrollY: -window.scrollY
-            }
-          });
-        });
-      }
-      
-      
+    function generatePDFWithAutoTable() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
 
-    /*************************************
-     * Generate a Unique Filename
-     *************************************/
-    function generateFilename(leadId) {
-      const randomNum = Math.floor(100000000 + Math.random() * 900000000);
-      const now = new Date();
-      const day = now.getDate().toString().padStart(2, '0');
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const month = monthNames[now.getMonth()];
-      const year = now.getFullYear().toString().substr(-2);
-      const filename = `affordability_decision_screenshot-${leadId}-${randomNum}-${day}${month}${year}.pdf`;
-      debugLog("DEBUG: Generated filename: " + filename);
-      return filename;
-    }
+      // --- Add Logo ---
+      // Using the logo URL from the HTML code.
+      // For more reliable rendering, convert the logo to a Base64 string.
+      const logoURL = "https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true";
+      // For this example, we assume the logo is already converted to Base64.
+      // Replace the string below with your Base64-encoded logo if needed.
+      const logoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABzElEQVR4Xu3bQUrDUBCF4d8t0B3QR3QR3Qr3YFeIR+QFd0F3oFd0F30HfsX9CMozL5m9f9+kfxQgAAAAAAAAAgP8T5utvj91/MN7v73aXtA3V+17D3A7UP/X98DVTvafAD/3D/DFTn29QD+oT+8/kYbV90D3D7U//XxTvA+0r/c9efAvTn9/9/W69wd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFd0F3oFf4J1jnPQ1uj+YAAAAASUVORK5CYII=";
+      
+      // Position the logo at x=10, y=10, width 50, height 20.
+      doc.addImage(logoBase64, "PNG", 10, 10, 50, 20);
 
-    /*************************************
-     * Upload PDF to AWS S3 and Return Public URL
-     *************************************/
-    function uploadScreenshotSecure(pdfBlob, filename) {
-      return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
-      .then(resp => resp.json())
-      .then(data => {
-        if (data.error) { throw new Error(data.error); }
-        const presignedUrl = data.presigned_url;
-        const publicUrl = data.public_url;
-        debugLog("DEBUG: Obtained presigned URL: " + presignedUrl);
-        return fetch(presignedUrl, {
-          method: "PUT",
-          headers: { "Content-Type": "application/pdf" },
-          body: pdfBlob
-        }).then(uploadResp => {
-          if (uploadResp.ok) {
-            debugLog("DEBUG: S3 upload succeeded.");
-            return publicUrl;
-          } else {
-            debugLog("DEBUG: S3 upload failed with status " + uploadResp.status);
-            throw new Error("S3 Upload failed");
-          }
-        });
+      // --- Add Header Text ---
+      const fullName = document.getElementById("fullName").value.trim();
+      const leadId = document.getElementById("leadId").value.trim();
+      const headerText = `Affordability Assessment - ${fullName ? fullName + " - " : ""}${leadId}`;
+      doc.setFontSize(16);
+      doc.text(headerText, 70, 20);
+
+      // --- Prepare Table Data ---
+      // For demonstration, this uses sample data.
+      // Replace tableHead and tableBody with your actual table data.
+      const tableHead = [["Category", "Month 1", "Month 2", "Month 3"]];
+      const tableBody = [
+        ["Income", "1000", "1200", "1100"],
+        ["Expenses", "800", "850", "900"],
+        ["Gambling", "50", "60", "55"]
+      ];
+
+      // --- Generate Table Using AutoTable ---
+      doc.autoTable({
+        head: tableHead,
+        body: tableBody,
+        startY: 40, // start below header
+        styles: {
+          cellPadding: 3,
+          halign: 'center',
+          valign: 'middle'
+        },
+        headStyles: {
+          fillColor: [220, 220, 220],
+          textColor: [0, 0, 0],
+          halign: 'center',
+          valign: 'middle'
+        },
+        margin: { top: 40, bottom: 20 }
       });
+
+      // --- Save PDF ---
+      doc.save("Affordability_Assessment.pdf");
     }
 
     /*************************************
@@ -987,9 +905,6 @@
 
     /*************************************
      * FINAL SUBMIT DECISION with Secure S3 Upload
-     * - Uses capturePDFwithJSPDFHTML() for improved PDF capture.
-     * - Shows a “Processing...” overlay before starting.
-     * - Hides the overlay after submission (or if an error occurs).
      *************************************/
     function finalSubmitDecision() {
       // Show the Processing Overlay before starting PDF capture.
@@ -1055,8 +970,8 @@
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
       debugLog("DEBUG: Using screenshot-based PDF capture with improved scale. Then uploading, then sending data to FLG with data9.");
-      // 1) Generate PDF from analysis & categorisations using capturePDFwithJSPDFHTML()
-      capturePDFwithJSPDFHTML()
+      // 1) Generate PDF from analysis & categorisations using captureScreenshotPDF()
+      captureScreenshotPDF()
       .then(pdfBlob => {
         const filename = generateFilename(leadId);
         // 2) Upload PDF to S3
@@ -1202,6 +1117,12 @@
             disabled
             onclick="processFinalData()">
       Process Data
+    </button>
+    <!-- Button to Generate PDF via AutoTable (Alternative Method) -->
+    <button id="generatePDFBtn"
+            class="mt-4 bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 w-full"
+            onclick="generatePDFWithAutoTable()">
+      Generate PDF (AutoTable)
     </button>
     <!-- Debug Output Area -->
     <div id="debugOutput"></div>
