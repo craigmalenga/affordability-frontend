@@ -181,32 +181,31 @@
      *************************************/
      function capturePDFwithJSPDFHTML() {
         debugLog("DEBUG: Starting improved PDF capture (just analysis & categorisations)");
-      
         return new Promise((resolve, reject) => {
           const { jsPDF } = window.jspdf;
           const pdf = new jsPDF('p', 'pt', 'a4');
       
-          // Find the container that holds the analysis + categorisations
+          // Find the container with analysis and categorisations
           const analysisSection = document.querySelector(".decision-box")?.parentElement;
           if (!analysisSection) {
             return reject(new Error("Analysis section not found."));
           }
-          // Clone that container
+          // Clone the container
           const clonedSection = analysisSection.cloneNode(true);
       
-          // Remove the "Process Decision" button/section if it exists
+          // Remove the Process Decision section (if it exists)
           const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
           if (processDecision) processDecision.remove();
       
-          // --- Add the Belmond logo at the top ---
+          // Create Belmond logo element
           const belmondLogo = document.createElement("img");
-          // Use your actual logo URL here
+          // Make sure to use your actual logo URL if different
           belmondLogo.src = "https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true";
           belmondLogo.style.width = "150px";
           belmondLogo.style.display = "block";
           belmondLogo.style.marginBottom = "16px";
       
-          // --- Add heading manually ---
+          // Create heading element
           const leadId = document.getElementById("leadId").value.trim();
           const heading = document.createElement("h2");
           heading.innerText = `Affordability assessment for ${leadId}`;
@@ -214,14 +213,13 @@
           heading.style.fontWeight = "bold";
           heading.style.marginBottom = "16px";
       
-          // Insert the heading first, then the logo in front of it
-          clonedSection.insertBefore(heading, clonedSection.firstChild);
+          // Insert logo and heading at the top (logo first, then heading)
           clonedSection.insertBefore(belmondLogo, clonedSection.firstChild);
+          clonedSection.insertBefore(heading, belmondLogo.nextSibling);
       
-          // Wrap in a container so styles remain consistent
+          // Wrap the cloned section in a container with a fixed width
           const wrapper = document.createElement("div");
-          // Give it a fixed width to avoid huge scaling
-          wrapper.style.width = "700px";
+          wrapper.style.width = "700px";  // Adjust this value to control the PDF zoom
           wrapper.appendChild(clonedSection);
       
           // Render the HTML into the PDF
@@ -233,16 +231,17 @@
             },
             x: 20,
             y: 20,
-            // Force the HTML rendering to a certain width
-            width: 555,          // This leaves some margin on an A4 page
-            windowWidth: 800,    // Tells html2canvas a "virtual" browser width
+            width: 555,          // Content width within the PDF page
+            windowWidth: 800,    // Virtual browser width for html2canvas
             html2canvas: {
-              scale: 2,          // Adjust if you want more or less resolution
-              scrollY: -window.scrollY
+              scale: 2,          // Adjust this scale as needed (e.g., try 1.5 or 2)
+              scrollY: -window.scrollY,
+              useCORS: true      // Enable cross-origin images
             }
           });
         });
       }
+      
       
 
     /*************************************
