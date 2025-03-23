@@ -12,7 +12,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- html2canvas (KEPT for line-count, but NOT used in new approach) -->
+  <!-- html2canvas (kept for fallback/line count) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- jsPDF library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -100,51 +100,48 @@
      *************************************/
     function debugLog(msg) {
       console.debug(msg);
-      // We could also append to #debugOutput if desired
+      // Optionally, append to #debugOutput for visual logging.
     }
 
-    /*
-    // OLD FUNCTION (COMMENTED OUT for line count, not used):
-    // function captureScreenshotPDF() {
-    //   debugLog("DEBUG: Starting screenshot capture using html2canvas.");
-    //   return html2canvas(document.documentElement, {
-    //     scrollY: 0,
-    //     useCORS: true,
-    //     scale: 2
-    //   }).then(canvas => {
-    //     ...
-    //     return pdf.output('blob');
-    //   });
-    // }
-    */
-
     /*************************************
-     * CHANGED OR NEW: 
-     * capturePDFwithJSPDFHTML()
-     * Use jsPDF's .html() method to build a PDF from #pdfContent
+     * Improved PDF Capture Using html2canvas
+     * Captures the content within #pdfContent at scale 3.
      *************************************/
-    function capturePDFwithJSPDFHTML() {
-      debugLog("DEBUG: Starting PDF capture using jsPDF's .html() method.");
-      return new Promise((resolve, reject) => {
+    function captureScreenshotPDF() {
+      debugLog("DEBUG: Starting screenshot capture using html2canvas with improved scale.");
+      const content = document.getElementById("pdfContent");
+      return html2canvas(content, {
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+        useCORS: true,
+        scale: 3
+      }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        debugLog("DEBUG: Screenshot captured, converting to multi-page PDF.");
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'pt', 'a4');
-        pdf.html(document.getElementById("pdfContent"), {
-          callback: function(pdf) {
-            debugLog("DEBUG: PDF generation with .html() completed successfully.");
-            const pdfBlob = pdf.output('blob');
-            resolve(pdfBlob);
-          },
-          x: 20,
-          y: 20,
-          html2canvas: {
-            scale: 2
-          }
-        });
+        let pdf = new jsPDF('p', 'pt', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pdfHeight;
+        }
+        debugLog("DEBUG: Multi-page PDF generated successfully.");
+        return pdf.output('blob');
       });
     }
 
     /*************************************
-     * Generate a unique filename
+     * Generate a unique filename for PDF upload
      *************************************/
     function generateFilename(leadId) {
       const randomNum = Math.floor(100000000 + Math.random() * 900000000);
@@ -159,7 +156,7 @@
     }
 
     /*************************************
-     * Upload PDF to S3 and return the public URL
+     * Upload PDF to AWS S3 and return public URL
      *************************************/
     function uploadScreenshotSecure(pdfBlob, filename) {
       return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
@@ -186,7 +183,7 @@
     }
 
     /*************************************
-     * Timer Configuration and Global Variables
+     * Global Variables and Timer Functions
      *************************************/
     let TIMER_CONFIG = {};
     fetch('./timer_config.json')
@@ -763,7 +760,6 @@
             Submit Decision
           </button>
         </div>`;
-      // New Categorisations block inserted below the Submit Decision button:
       let categorisationHTML = `<div class="categorisations mt-4">
         <h4 class="font-bold mb-2">CATEGORISATIONS</h4>`;
       statements.forEach(st => {
@@ -856,9 +852,9 @@
     /*************************************
      * CHANGED OR NEW:
      * Final Submit Decision with Secure S3 Upload
-     * - Using capturePDFwithJSPDFHTML() 
-     * - Logging the final fetch call
-     * - Posting to data8 instead of data9 for debugging
+     * - Using capturePDFwithJSPDFHTML() (improved approach is commented out; we are using the screenshot-based function with improved scale)
+     * - Explicitly posting data9 with the screenshot URL
+     * - Logging the final fetch call for debugging
      *************************************/
     function finalSubmitDecision() {
       const decisionOptions = document.getElementsByName("decisionOption");
@@ -920,10 +916,10 @@
 
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
-      debugLog("DEBUG: Using jsPDF.html() approach to generate PDF. Then uploading, then sending data to FLG with data8 for debugging...");
+      debugLog("DEBUG: Using screenshot-based PDF capture with improved scale. Then uploading, then sending data to FLG with data9 for debugging...");
 
       // 1) Generate PDF from #pdfContent
-      capturePDFwithJSPDFHTML()
+      captureScreenshotPDF()
       .then(pdfBlob => {
         const filename = generateFilename(leadId);
         // 2) Upload to S3
@@ -931,19 +927,17 @@
       })
       .then(screenshotUrl => {
         debugLog("DEBUG: PDF uploaded to S3. Public URL: " + screenshotUrl);
-        debugLog("DEBUG: Submitting data to FLG, including data8 with the screenshot URL...");
-
-        // 3) Post to FLG, but using data8 (not data9) for debugging
+        debugLog("DEBUG: Submitting data to FLG, including data9 with the screenshot URL...");
+        // 3) Post to FLG, explicitly setting data9 to the screenshot URL.
         return fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            leadId,
-            data6,
-            data7,
-            // CHANGED: posting screenshot URL to data8 instead of data9
-            data8: screenshotUrl
+            "leadId": leadId,
+            "data6": data6,
+            "data7": data7,
+            "data9": screenshotUrl
           })
         });
       })
@@ -959,7 +953,7 @@
         } else {
           finalSubmitted = true;
           showAlert("Confirmation - all information has successfully been submitted");
-          debugLog("DEBUG: FLG update with screenshot succeeded. data8 should contain the URL now.");
+          debugLog("DEBUG: FLG update with screenshot succeeded. data9 should contain the URL now.");
         }
       })
       .catch(err => {
@@ -1006,11 +1000,7 @@
     <button id="alertButton" onclick="closeAlert()">OK</button>
   </div>
 
-  <!-- 
-    CHANGED OR NEW:
-    Wrap all your content in a container with id="pdfContent"
-    so jsPDF.html() can process it as a single block. 
-  -->
+  <!-- Wrap all content in #pdfContent for full capture -->
   <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
     <!-- Top bar -->
     <div class="flex justify-between items-center mb-4">
