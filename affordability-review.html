@@ -127,13 +127,13 @@
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const month = monthNames[now.getMonth()];
       const year = now.getFullYear().toString().substr(-2);
-      const filename = `affordability_decision_screenshot-${leadId}-${randomNum}-${day}${month}${year}.pdf`;
+      const filename = affordability_decision_screenshot-${leadId}-${randomNum}-${day}${month}${year}.pdf;
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
     // New secure upload: Get a presigned URL from backend and then PUT the PDF blob
     function uploadScreenshotSecure(pdfBlob, filename) {
-      return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
+      return fetch(/api/generate_presigned_url?filename=${encodeURIComponent(filename)}, { credentials: "include" })
       .then(resp => resp.json())
       .then(data => {
         if(data.error) {
@@ -197,7 +197,7 @@
       const hh = Math.floor(diffSec / 3600).toString().padStart(1, '0');
       const mm = Math.floor((diffSec % 3600) / 60).toString().padStart(2, '0');
       const ss = (diffSec % 60).toString().padStart(2, '0');
-      document.getElementById("timerDisplay").innerText = `Timer: ${hh}:${mm}:${ss}`;
+      document.getElementById("timerDisplay").innerText = Timer: ${hh}:${mm}:${ss};
     }
     function startTimer() {
       startTime = new Date();
@@ -219,11 +219,11 @@
      * Save Data
      *************************************/
     function saveData(statementIndex, rowIndex, monthIndex) {
-      const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
+      const inputId = ${statementIndex}_${rowIndex}_${monthIndex};
       const inputElem = document.getElementById(inputId);
       let val = parseFloat(inputElem.value.replace(/,/g, ''));
       if (isNaN(val)) val = 0;
-      statements[statementIndex].data[`${rowIndex}_${monthIndex}`] = val;
+      statements[statementIndex].data[${rowIndex}_${monthIndex}] = val;
       inputElem.value = formatNumericValue(val);
       const cb = document.getElementById("override_" + statementIndex);
       if (cb && cb.checked) {
@@ -269,7 +269,7 @@
         return;
       }
       startTimer();
-      fetch(`https://web-production-15e92.up.railway.app/api/flg_data/${leadId}`, { credentials: 'include' })
+      fetch(https://web-production-15e92.up.railway.app/api/flg_data/${leadId}, { credentials: 'include' })
         .then(resp => resp.json())
         .then(data => {
           if (data.error) {
@@ -329,7 +329,7 @@
         container.classList.add("mb-4");
         const viewLink = document.createElement("a");
         viewLink.href = statement.file;
-        viewLink.innerText = `View ${statement.bank} statement`;
+        viewLink.innerText = View ${statement.bank} statement;
         viewLink.classList.add("text-blue-500", "underline", "cursor-pointer");
         viewLink.onclick = (e) => { e.preventDefault(); window.open(statement.file, "_blank"); };
         const btnContainer = document.createElement("div");
@@ -372,30 +372,30 @@
     function loadStatementForm(statementIndex) {
       const statement = statements[statementIndex];
       const formContainer = document.getElementById("statementForm");
-      formContainer.innerHTML = `<h3 class='text-lg font-bold mt-6'>${statement.bank} Statement Data</h3>`;
+      formContainer.innerHTML = <h3 class='text-lg font-bold mt-6'>${statement.bank} Statement Data</h3>;
       const months = (dynamicMonths.length === 3) ? dynamicMonths : ["Month1", "Month2", "Month3"];
-      let table = `<table class='w-full border-collapse border border-gray-300 mt-4'><tr><th class='border p-2'>Category</th>`;
-      months.forEach(month => { table += `<th class='border p-2'>${month}</th>`; });
+      let table = <table class='w-full border-collapse border border-gray-300 mt-4'><tr><th class='border p-2'>Category</th>;
+      months.forEach(month => { table += <th class='border p-2'>${month}</th>; });
       table += "</tr>";
       categories.forEach((category, rowIndex) => {
-        table += `<tr><td class='border p-2 font-semibold'>${category}</td>`;
+        table += <tr><td class='border p-2 font-semibold'>${category}</td>;
         months.forEach((_, monthIndex) => {
-          const rawVal = statement.data[`${rowIndex}_${monthIndex}`] || 0;
+          const rawVal = statement.data[${rowIndex}_${monthIndex}] || 0;
           const displayVal = formatNumericValue(rawVal);
-          table += `<td class='border p-2'>
+          table += <td class='border p-2'>
               <input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}'
                      class='border p-2 w-full rounded-md text-right'
                      value="${displayVal}"
                      onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})">
-            </td>`;
+            </td>;
         });
         table += "</tr>";
       });
       table += "</table>";
-      table += `<button onclick='uploadBankData(${statementIndex})'
+      table += <button onclick='uploadBankData(${statementIndex})'
                 class='mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-full'>
           Upload data for this bank to summary before processing
-        </button>`;
+        </button>;
       formContainer.innerHTML = table;
     }
     function uploadBankData(statementIndex) {
@@ -439,14 +439,14 @@
                 const fieldIndex = 1 + (row * 3) + month;
                 let val = parseFloat(group[fieldIndex].replace(/,/g, ''));
                 if (isNaN(val)) val = 0;
-                statements[foundIndex].data[`${row}_${month}`] = val;
-                const inputElem = document.getElementById(`${foundIndex}_${row}_${month}`);
+                statements[foundIndex].data[${row}_${month}] = val;
+                const inputElem = document.getElementById(${foundIndex}_${row}_${month});
                 if (inputElem) {
                   inputElem.value = val.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 }
               }
             }
-            const btn = document.getElementById(`enterDataBtn_${foundIndex}`);
+            const btn = document.getElementById(enterDataBtn_${foundIndex});
             if (btn) {
               btn.innerText = "Review Data";
               btn.classList.remove("bg-blue-600", "text-white");
@@ -469,21 +469,6 @@
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = !allEntered;
       processBtn.style.backgroundColor = allEntered ? "green" : "red";
-      const finalSubmitBtn = document.getElementById("finalSubmitBtn");
-      if (finalSubmitBtn) {
-        const decisionOptions = document.getElementsByName("decisionOption");
-        let selected = "";
-        for (let opt of decisionOptions) {
-          if (opt.checked) { selected = opt.value; break; }
-        }
-        const reviewComment = document.getElementById("reviewComment");
-        const commentVal = reviewComment ? reviewComment.value.trim() : "";
-        if (!allEntered || selected === "" || (selected === "review" && !commentVal)) {
-          finalSubmitBtn.disabled = true;
-        } else {
-          finalSubmitBtn.disabled = false;
-        }
-      }
     }
     /*************************************
      * Override Check Functions
@@ -578,14 +563,14 @@
         message = normalMsg.replace("{min}", minTime).replace("{max}", maxTime);
         overrideText = overrideNormal;
       }
-      timerDiv.innerHTML = `
+      timerDiv.innerHTML = 
         <h3>Information on time you've taken to process this data:</h3>
         <p>${message}</p>
         <div class="mt-2">
           <input type="checkbox" id="timerOverrideCheckbox" class="mr-2" />
           <label for="timerOverrideCheckbox">${overrideText}</label>
         </div>
-      `;
+      ;
       document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => { timerOverrideAcknowledged = e.target.checked; checkAllOverrides(); });
     }
     /*************************************
@@ -611,11 +596,11 @@
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
       statements.forEach(st => {
         for (let m = 0; m < nMonths; m++) {
-          totalIncome += (st.data[`0_${m}`] || 0);
+          totalIncome += (st.data[0_${m}] || 0);
           let exp = 0;
-          for (let r = 1; r <= 4; r++) { exp += (st.data[`${r}_${m}`] || 0); }
+          for (let r = 1; r <= 4; r++) { exp += (st.data[${r}_${m}] || 0); }
           totalExpenses += exp;
-          totalGambling += (st.data[`5_${m}`] || 0);
+          totalGambling += (st.data[5_${m}] || 0);
         }
       });
       const avgIncome = totalIncome / (nBanks * nMonths);
@@ -633,9 +618,9 @@
       let sumExpensesArr = Array(nMonths).fill(0);
       statements.forEach(st => {
         for (let m = 0; m < nMonths; m++) {
-          sumIncomeArr[m] += (st.data[`0_${m}`] || 0);
+          sumIncomeArr[m] += (st.data[0_${m}] || 0);
           let e = 0;
-          for (let r = 1; r <= 4; r++) { e += (st.data[`${r}_${m}`] || 0); }
+          for (let r = 1; r <= 4; r++) { e += (st.data[${r}_${m}] || 0); }
           sumExpensesArr[m] += e;
         }
       });
@@ -643,19 +628,19 @@
       for (let i = 0; i < nMonths; i++) {
         if (sumExpensesArr[i] > sumIncomeArr[i]) { problemMonths.push(dynamicMonths[i]); }
         if (sumIncomeArr[i] === 0 && sumExpensesArr[i] === 0) {
-          bankWarnings += `No income or expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
+          bankWarnings += No income or expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>;
         } else if (sumIncomeArr[i] === 0) {
-          bankWarnings += `No income entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
+          bankWarnings += No income entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>;
         } else if (sumExpensesArr[i] === 0) {
-          bankWarnings += `No expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>`;
+          bankWarnings += No expenses entered for month ${dynamicMonths[i]} (possibly incomplete data).<br/>;
         }
       }
       if (problemMonths.length === 1) {
-        bankWarnings += `Expenses exceed income for month ${problemMonths[0]}.<br/>`;
+        bankWarnings += Expenses exceed income for month ${problemMonths[0]}.<br/>;
       } else if (problemMonths.length === 2) {
-        bankWarnings += `Expenses exceed income for months ${problemMonths[0]} and ${problemMonths[1]}.<br/>`;
+        bankWarnings += Expenses exceed income for months ${problemMonths[0]} and ${problemMonths[1]}.<br/>;
       } else if (problemMonths.length > 2) {
-        bankWarnings += `Expenses exceed income for months ${problemMonths.join(", ")}.<br/>`;
+        bankWarnings += Expenses exceed income for months ${problemMonths.join(", ")}.<br/>;
       }
       const totalSec = Math.floor((new Date() - startTime) / 1000);
       let nBanksManual = statements.filter(st => !st.prepopulated).length;
@@ -663,20 +648,20 @@
       const timePerBank = (totalSec / 60) / nBanksManual;
       let warningsHTML = "";
       if (bankWarnings) {
-        warningsHTML = `<div id="bankWarningsDiv" class="warning-box">
+        warningsHTML = <div id="bankWarningsDiv" class="warning-box">
             <h3>Please review your entries:</h3>
             <p>${bankWarnings}</p>
-          </div>`;
+          </div>;
         renderOverrideCheckboxes();
       }
-      let timeHTML = `<div id="timerOverrideDiv" class="time-box">
+      let timeHTML = <div id="timerOverrideDiv" class="time-box">
           <h3>Information on time you've taken to process this data:</h3>
           <p></p>
           <div class="mt-2">
             <input type="checkbox" id="timerOverrideCheckbox" class="mr-2" />
             <label for="timerOverrideCheckbox">[Will be filled dynamically]</label>
           </div>
-        </div>`;
+        </div>;
       document.getElementById("errorContainer").innerHTML = warningsHTML + timeHTML;
       renderTimerOverrideBox(timePerBank);
       let decision = "";
@@ -685,18 +670,18 @@
       else if (gambPctIncome >= 10 && gambPctIncome <= 14 && loanRepayPct > 50) { decision = "Unaffordable"; reason = "Gambling between 10–14% and repayment exceeds 50% of disposable income."; }
       else if (gambPctIncome < 10 && loanRepayPct > 65) { decision = "Unaffordable"; reason = "Gambling is below 10%, but repayment cost is over 65% of disposable income."; }
       else { decision = "Affordability"; reason = "Neither gambling nor repayment costs indicate financial distress."; }
-      let decisionHTML = `<div class="decision-box mt-4">
+      let decisionHTML = <div class="decision-box mt-4">
           <h3>Decision: ${decision}</h3>
           <p>${reason}</p>
-        </div>`;
-      const dispAvgIncome = `£${formatNumericValue(avgIncome)}`;
-      const dispAvgExpenses = `£${formatNumericValue(avgExpenses)}`;
-      const dispAvgGambling = `£${formatNumericValue(avgGambling)}`;
-      const dispAvgDisposable = `£${formatNumericValue(avgDisposable)}`;
-      const dispGambPctIncome = `${Math.round(gambPctIncome)}%`;
-      const dispGambPctDisposable = `${Math.round(gambPctDisposable)}%`;
-      const dispLoanRepayPct = `${Math.round(loanRepayPct)}%`;
-      let summaryHTML = `<table class="summary-table">
+        </div>;
+      const dispAvgIncome = £${formatNumericValue(avgIncome)};
+      const dispAvgExpenses = £${formatNumericValue(avgExpenses)};
+      const dispAvgGambling = £${formatNumericValue(avgGambling)};
+      const dispAvgDisposable = £${formatNumericValue(avgDisposable)};
+      const dispGambPctIncome = ${Math.round(gambPctIncome)}%;
+      const dispGambPctDisposable = ${Math.round(gambPctDisposable)}%;
+      const dispLoanRepayPct = ${Math.round(loanRepayPct)}%;
+      let summaryHTML = <table class="summary-table">
           <tr><th>Average Income</th><td style="text-align:right;">${dispAvgIncome} per month</td></tr>
           <tr><th>Average Expenses (excl. gambling)</th><td style="text-align:right;">${dispAvgExpenses} per month</td></tr>
           <tr><th>Average Gambling</th><td style="text-align:right;">${dispAvgGambling} per month</td></tr>
@@ -704,8 +689,8 @@
           <tr><th>Gambling as % of Income</th><td style="text-align:right;">${dispGambPctIncome}</td></tr>
           <tr><th>Gambling as % of Disposable Income</th><td style="text-align:right;">${dispGambPctDisposable}</td></tr>
           <tr><th>Loan Repayments as % of Disposable Income</th><td style="text-align:right;">${dispLoanRepayPct}</td></tr>
-        </table>`;
-      let processDecisionHTML = `<div class="bg-gray-50 p-4 mt-4 border rounded">
+        </table>;
+      let processDecisionHTML = <div class="bg-gray-50 p-4 mt-4 border rounded">
           <h4 class="font-bold mb-2">Process Decision</h4>
           <div class="mb-2">
             <label class="inline-flex items-center">
@@ -726,14 +711,68 @@
           <button id="finalSubmitBtn" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md w-full" disabled onclick="finalSubmitDecision()">
             Submit Decision
           </button>
-        </div>`;
+        </div>;
       const formDiv = document.getElementById("statementForm");
-      formDiv.innerHTML = `<div class="bg-white p-4 mt-6 shadow-md">
+      formDiv.innerHTML = <div class="bg-white p-4 mt-6 shadow-md">
           <h3 class="text-xl font-bold mb-4">Calculated Averages and Analysis</h3>
           ${summaryHTML}
         </div>
         ${decisionHTML}
-        ${processDecisionHTML}`;
+        ${processDecisionHTML};
+    }
+    /*************************************
+     * Decision Option Checks
+     *************************************/
+    function checkDecisionOptions() {
+      const decisionOptions = document.getElementsByName("decisionOption");
+      let selected = "";
+      for (let opt of decisionOptions) {
+        if (opt.checked) { selected = opt.value; break; }
+      }
+      const reviewContainer = document.getElementById("reviewCommentContainer");
+      const finalSubmitBtn = document.getElementById("finalSubmitBtn");
+      if (selected === "review") {
+        reviewContainer.style.display = "block";
+        let comment = document.getElementById("reviewComment").value.trim();
+        comment = comment.replace(/,/g, "");
+        finalSubmitBtn.disabled = !comment;
+      } else {
+        reviewContainer.style.display = "none";
+        finalSubmitBtn.disabled = (selected === "");
+      }
+      checkAllOverrides();
+    }
+    /*************************************
+     * Build data6 and data7
+     *************************************/
+    function buildAffordabilityInput() {
+      let arr = [];
+      statements.forEach(st => {
+        arr.push(st.bank);
+        for (let r = 0; r < categories.length; r++) {
+          for (let m = 0; m < 3; m++) {
+            let val = st.data[${r}_${m}] || 0;
+            arr.push(val.toFixed(2));
+          }
+        }
+      });
+      return arr.join(",");
+    }
+    function buildAffordabilityOutput(avgInc, avgExp, avgGamb, avgDisp, pctInc, pctDisp, pctLoan, finalDecision, finalReason, timeMin) {
+      const fmtNum = (val) => val.toFixed(2);
+      const fmtPct = (val) => (val).toFixed(0) + "%";
+      let items = [];
+      items.push(fmtNum(avgInc));
+      items.push(fmtNum(avgExp));
+      items.push(fmtNum(avgGamb));
+      items.push(fmtNum(avgDisp));
+      items.push(fmtPct(pctInc));
+      items.push(fmtPct(pctDisp));
+      items.push(fmtPct(pctLoan));
+      items.push(finalDecision);
+      items.push(finalReason);
+      items.push(Math.round(timeMin));
+      return items.join(",");
     }
     /*************************************
      * Final Submit Decision with Secure S3 Upload
@@ -754,10 +793,8 @@
       let autoReason = decParagraph ? decParagraph.innerText.trim() : "";
       let finalDecision = "";
       let finalReason = "";
-      if (selected === "default") {
-        finalDecision = autoDecision;
-        finalReason = autoReason;
-      } else if (selected === "review") {
+      if (selected === "default") { finalDecision = autoDecision; finalReason = autoReason; }
+      else if (selected === "review") {
         let comment = document.getElementById("reviewComment").value.trim();
         comment = comment.replace(/,/g, "");
         finalDecision = "Revisit - " + comment;
@@ -768,11 +805,11 @@
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
       statements.forEach(st => {
         for (let m = 0; m < nMonths; m++) {
-          totalIncome += (st.data[`0_${m}`] || 0);
+          totalIncome += (st.data[0_${m}] || 0);
           let exp = 0;
-          for (let r = 1; r <= 4; r++) { exp += (st.data[`${r}_${m}`] || 0); }
+          for (let r = 1; r <= 4; r++) { exp += (st.data[${r}_${m}] || 0); }
           totalExpenses += exp;
-          totalGambling += (st.data[`5_${m}`] || 0);
+          totalGambling += (st.data[5_${m}] || 0);
         }
       });
       const avgIncome = (nBanks * nMonths > 0) ? (totalIncome / (nBanks * nMonths)) : 0;
@@ -803,8 +840,8 @@
         return uploadScreenshotSecure(pdfBlob, filename);
       }).then(screenshotUrl => {
         debugLog("DEBUG: Screenshot uploaded successfully. URL: " + screenshotUrl);
-        debugLog("DEBUG: Posting final decision update to FLG with screenshot URL.");
-        return fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
+        debugLog("DEBUG: Posting final decision update to FLG.");
+        fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -814,20 +851,26 @@
             data7,
             data9: screenshotUrl
           })
+        })
+        .then(resp => resp.json())
+        .then(respData => {
+          if (respData.error) {
+            showAlert("Error updating FLG: " + respData.error);
+            debugLog("DEBUG: FLG update error: " + respData.error);
+          } else {
+            showAlert("FLG updated successfully!");
+            debugLog("DEBUG: FLG update succeeded.");
+          }
+        })
+        .catch(err => {
+          console.error("Error updating FLG:", err);
+          showAlert("Error updating FLG. Check console for details.");
+          debugLog("DEBUG: Error updating FLG: " + err.message);
         });
-      }).then(resp => resp.json())
-      .then(respData => {
-        if (respData.error) {
-          showAlert("Error updating FLG: " + respData.error);
-          debugLog("DEBUG: FLG update error: " + respData.error);
-        } else {
-          showAlert("FLG updated successfully!");
-          debugLog("DEBUG: FLG update succeeded.");
-        }
       }).catch(err => {
-        console.error("Screenshot or FLG Update failed:", err);
-        showAlert("Screenshot capture/upload or FLG update failed. Please try again.");
-        debugLog("DEBUG: Error in final submission: " + err.message);
+        console.error("Screenshot or S3 Upload failed:", err);
+        showAlert("Screenshot capture or upload failed. Please try again.");
+        debugLog("DEBUG: Screenshot capture/upload error: " + err.message);
       });
     }
     /*************************************
@@ -927,6 +970,5 @@
     <!-- Debug Output Area -->
     <div id="debugOutput"></div>
   </div>
-  
 </body>
 </html>
