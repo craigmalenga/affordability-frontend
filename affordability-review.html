@@ -186,60 +186,72 @@
           const { jsPDF } = window.jspdf;
           const pdf = new jsPDF('p', 'pt', 'a4');
       
-          // Find the analysis section (assumed to be the parent container of .decision-box)
+          // 1. Locate the analysis section (assumed to be the parent container of .decision-box)
           const analysisSection = document.querySelector(".decision-box")?.parentElement;
           if (!analysisSection) {
             return reject(new Error("Analysis section not found."));
           }
       
-          // Create a dedicated container for the PDF content
+          // 2. Create a dedicated container for the PDF content
           const pdfContainer = document.createElement("div");
-          pdfContainer.style.width = "800px";           // Fixed width to control scaling
+          pdfContainer.style.width = "800px"; // fixed width to control scaling
           pdfContainer.style.fontFamily = "sans-serif";
           pdfContainer.style.color = "#000";
           pdfContainer.style.backgroundColor = "#fff";
           pdfContainer.style.padding = "20px";
       
-          // Add the Belmond logo at the top
-          const belmondLogo = document.createElement("img");
-          belmondLogo.src = "https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true";
-          belmondLogo.style.width = "150px";
-          belmondLogo.style.display = "block";
-          belmondLogo.style.marginBottom = "16px";
-          belmondLogo.crossOrigin = "anonymous"; // helps with CORS issues
-          pdfContainer.appendChild(belmondLogo);
+          // 3. Append a style element to ensure all table cells are vertically centered
+          const styleElem = document.createElement("style");
+          styleElem.innerHTML = `
+            table { border-collapse: collapse; }
+            td, th { vertical-align: middle !important; }
+          `;
+          pdfContainer.appendChild(styleElem);
       
-          // Retrieve the full name and lead ID for the heading
+          // 4. Add the Belmond logo using a background image (alternative approach)
+          const logoContainer = document.createElement("div");
+          logoContainer.style.width = "150px";
+          logoContainer.style.height = "auto";
+          logoContainer.style.marginBottom = "16px";
+          logoContainer.style.backgroundImage = "url('https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true')";
+          logoContainer.style.backgroundSize = "contain";
+          logoContainer.style.backgroundRepeat = "no-repeat";
+          logoContainer.style.backgroundPosition = "center";
+          pdfContainer.appendChild(logoContainer);
+      
+          // 5. Create the heading with the text "Affordability Assessment - " then [Name] and Lead ID
           const fullName = document.getElementById("fullName").value.trim();
           const leadId = document.getElementById("leadId").value.trim();
-      
-          // Create the heading with the requested text format
           const heading = document.createElement("h2");
-          // Format: "Affordability Assessment <space> [Name] - <Lead ID>"
-          heading.innerText = `Affordability Assessment ${fullName ? fullName + " " : ""}- ${leadId}`;
+          heading.innerText = `Affordability Assessment - ${fullName ? fullName + " - " : ""}${leadId}`;
           heading.style.fontSize = "18pt";
           heading.style.fontWeight = "bold";
           heading.style.marginBottom = "16px";
           pdfContainer.appendChild(heading);
       
-          // Clone the analysis section and remove unwanted elements (like the finalSubmit button)
+          // 6. Clone the analysis section and remove any unwanted elements (e.g., finalSubmit button)
           const clonedSection = analysisSection.cloneNode(true);
           const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
           if (processDecision) processDecision.remove();
           pdfContainer.appendChild(clonedSection);
       
-          // Render the container into the PDF using jsPDF.html
+          // 7. Prevent generating a PDF if content is blank
+          if (!pdfContainer.innerText.trim()) {
+            return reject(new Error("PDF content is blank."));
+          }
+      
+          // 8. Render the container into the PDF using jsPDF.html
           pdf.html(pdfContainer, {
             callback: function (pdf) {
               debugLog("DEBUG: PDF generated successfully.");
               const pdfBlob = pdf.output('blob');
               resolve(pdfBlob);
             },
-            x: 10,         // left margin in PDF
-            y: 10,         // top margin in PDF
-            width: 550,    // content width in PDF points; adjust if needed
+            x: 10,    // left margin in PDF
+            y: 10,    // top margin in PDF
+            width: 550, // content width in PDF points (adjust as needed)
             html2canvas: {
-              scale: 0.55,  // set scale to 0.55 as requested
+              scale: 0.55, // set to 0.55 as requested for a "zoomed out" result
               useCORS: true,
               scrollY: -window.scrollY
             }
