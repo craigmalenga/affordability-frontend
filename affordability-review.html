@@ -194,29 +194,44 @@
       
           // 2. Create a dedicated container for the PDF content
           const pdfContainer = document.createElement("div");
-          pdfContainer.style.width = "800px"; // fixed width to control scaling
+          pdfContainer.style.width = "800px";  // Fixed width to control scaling
           pdfContainer.style.fontFamily = "sans-serif";
           pdfContainer.style.color = "#000";
           pdfContainer.style.backgroundColor = "#fff";
           pdfContainer.style.padding = "20px";
       
-          // 3. Append a style element to ensure all table cells are vertically centered
+          // 3. Append a style element to enforce vertical centering and try to avoid splitting tables
           const styleElem = document.createElement("style");
           styleElem.innerHTML = `
-            table { border-collapse: collapse; }
-            td, th { vertical-align: middle !important; }
+            table { 
+              border-collapse: collapse; 
+              page-break-inside: avoid; 
+            }
+            tr { 
+              page-break-inside: avoid; 
+              page-break-after: auto; 
+            }
+            td, th { 
+              vertical-align: middle !important; 
+              padding: 4px;
+            }
+            .no-break { page-break-inside: avoid; }
           `;
           pdfContainer.appendChild(styleElem);
       
-          // 4. Add the Belmond logo using a background image (alternative approach)
+          // 4. Add the Belmond logo.
+          // If the logo still doesn't show, consider converting it to a Base64 data URL.
           const logoContainer = document.createElement("div");
           logoContainer.style.width = "150px";
           logoContainer.style.height = "auto";
           logoContainer.style.marginBottom = "16px";
+          // Alternative method: using a background image
           logoContainer.style.backgroundImage = "url('https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true')";
           logoContainer.style.backgroundSize = "contain";
           logoContainer.style.backgroundRepeat = "no-repeat";
           logoContainer.style.backgroundPosition = "center";
+          // Uncomment the next line if using an <img> tag instead:
+          // logoContainer.innerHTML = `<img src="data:image/png;base64, YOUR_BASE64_DATA" style="width:150px; display:block; margin-bottom:16px;" />`;
           pdfContainer.appendChild(logoContainer);
       
           // 5. Create the heading with the text "Affordability Assessment - " then [Name] and Lead ID
@@ -229,13 +244,13 @@
           heading.style.marginBottom = "16px";
           pdfContainer.appendChild(heading);
       
-          // 6. Clone the analysis section and remove any unwanted elements (e.g., finalSubmit button)
+          // 6. Clone the analysis section and remove any unwanted elements (like the finalSubmit button)
           const clonedSection = analysisSection.cloneNode(true);
           const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
           if (processDecision) processDecision.remove();
           pdfContainer.appendChild(clonedSection);
       
-          // 7. Prevent generating a PDF if content is blank
+          // 7. Prevent generating a PDF if the content is blank
           if (!pdfContainer.innerText.trim()) {
             return reject(new Error("PDF content is blank."));
           }
@@ -247,11 +262,11 @@
               const pdfBlob = pdf.output('blob');
               resolve(pdfBlob);
             },
-            x: 10,    // left margin in PDF
-            y: 10,    // top margin in PDF
-            width: 550, // content width in PDF points (adjust as needed)
+            x: 10,   // left margin in PDF
+            y: 10,   // top margin in PDF
+            width: 550, // content width in PDF points (adjust if needed)
             html2canvas: {
-              scale: 0.55, // set to 0.55 as requested for a "zoomed out" result
+              scale: 0.55,  // set to 0.55 as requested for a "zoomed out" result
               useCORS: true,
               scrollY: -window.scrollY
             }
