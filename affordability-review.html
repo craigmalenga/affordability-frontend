@@ -12,8 +12,9 @@
   <link rel="manifest" href="/site.webmanifest" />
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- html2canvas and jsPDF libraries -->
+  <!-- html2canvas (KEPT for line-count, but NOT used in new approach) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- jsPDF library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body {
@@ -99,44 +100,52 @@
      *************************************/
     function debugLog(msg) {
       console.debug(msg);
-      // On-screen debug output is suppressed.
+      // We could also append to #debugOutput if desired
     }
+
+    /*
+    // OLD FUNCTION (COMMENTED OUT for line count, not used):
+    // function captureScreenshotPDF() {
+    //   debugLog("DEBUG: Starting screenshot capture using html2canvas.");
+    //   return html2canvas(document.documentElement, {
+    //     scrollY: 0,
+    //     useCORS: true,
+    //     scale: 2
+    //   }).then(canvas => {
+    //     ...
+    //     return pdf.output('blob');
+    //   });
+    // }
+    */
+
     /*************************************
-     * Screenshot PDF & Secure S3 Upload Functions
+     * CHANGED OR NEW: 
+     * capturePDFwithJSPDFHTML()
+     * Use jsPDF's .html() method to build a PDF from #pdfContent
      *************************************/
-    // Modified to capture the entire content from a dedicated container with id "pdfContent"
-    function captureScreenshotPDF() {
-      debugLog("DEBUG: Starting full-page screenshot capture using html2canvas.");
-      return html2canvas(document.getElementById("pdfContent"), {
-        scrollY: -window.scrollY,
-        windowWidth: document.documentElement.scrollWidth,
-        windowHeight: document.documentElement.scrollHeight,
-        useCORS: true,
-        scale: 2
-      }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png', 1.0);
-        debugLog("DEBUG: Screenshot captured, converting to multi-page PDF.");
+    function capturePDFwithJSPDFHTML() {
+      debugLog("DEBUG: Starting PDF capture using jsPDF's .html() method.");
+      return new Promise((resolve, reject) => {
         const { jsPDF } = window.jspdf;
-        let pdf = new jsPDF('p', 'pt', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-        // Add pages until all content is included.
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pdfHeight;
-        }
-        debugLog("DEBUG: Multi-page PDF generated successfully.");
-        return pdf.output('blob');
+        const pdf = new jsPDF('p', 'pt', 'a4');
+        pdf.html(document.getElementById("pdfContent"), {
+          callback: function(pdf) {
+            debugLog("DEBUG: PDF generation with .html() completed successfully.");
+            const pdfBlob = pdf.output('blob');
+            resolve(pdfBlob);
+          },
+          x: 20,
+          y: 20,
+          html2canvas: {
+            scale: 2
+          }
+        });
       });
     }
+
+    /*************************************
+     * Generate a unique filename
+     *************************************/
     function generateFilename(leadId) {
       const randomNum = Math.floor(100000000 + Math.random() * 900000000);
       const now = new Date();
@@ -148,7 +157,10 @@
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
-    // Upload PDF to S3 and return the public URL.
+
+    /*************************************
+     * Upload PDF to S3 and return the public URL
+     *************************************/
     function uploadScreenshotSecure(pdfBlob, filename) {
       return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
       .then(resp => resp.json())
@@ -172,6 +184,7 @@
         });
       });
     }
+
     /*************************************
      * Timer Configuration and Global Variables
      *************************************/
@@ -192,6 +205,7 @@
     let finalProcessingInitiated = false;
     let finalDecision = "";
     let finalSubmitted = false;
+
     /*************************************
      * Centered Alert Functions
      *************************************/
@@ -205,6 +219,7 @@
       document.getElementById("alertBox").style.display = "none";
       if (finalSubmitted) { window.location.reload(); }
     }
+
     /*************************************
      * Timer Functions
      *************************************/
@@ -226,12 +241,14 @@
       totalTimeSpentSeconds = Math.floor((new Date() - startTime) / 1000);
       return totalTimeSpentSeconds;
     }
+
     /*************************************
      * Numeric Formatting
      *************************************/
     function formatNumericValue(num) {
       return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+
     /*************************************
      * Save Data
      *************************************/
@@ -249,6 +266,7 @@
         checkAllOverrides();
       }
     }
+
     /*************************************
      * Reset Form
      *************************************/
@@ -275,6 +293,7 @@
       processBtn.style.backgroundColor = "red";
       processBtn.innerText = "Process Data";
     }
+
     /*************************************
      * Fetch Lead Data
      *************************************/
@@ -335,6 +354,7 @@
           showAlert("Unable to retrieve data – check Lead ID being entered and if issue persists, speak to a line manager");
         });
     }
+
     /*************************************
      * Create Statement Links
      *************************************/
@@ -367,6 +387,7 @@
         pdfContainer.appendChild(container);
       });
     }
+
     /*************************************
      * Create Load Prior Input Button
      *************************************/
@@ -383,6 +404,7 @@
       loadPriorBtnContainer.appendChild(loadPriorBtn);
       bankStatementsDiv.appendChild(loadPriorBtnContainer);
     }
+
     /*************************************
      * Load Statement Form
      *************************************/
@@ -432,6 +454,7 @@
       }
       checkProcessButton();
     }
+
     /*************************************
      * Load Prior Input Data
      *************************************/
@@ -478,6 +501,7 @@
         showAlert("Prior input data loaded for matching bank accounts.");
       }
     }
+
     /*************************************
      * Check Process Button
      *************************************/
@@ -498,6 +522,7 @@
         finalSubmitBtn.disabled = (!allEntered || selected === "" || (selected === "review" && !commentVal));
       }
     }
+
     /*************************************
      * Override Check Functions
      *************************************/
@@ -556,6 +581,7 @@
         }
       }
     }
+
     /*************************************
      * Render Timer Override Box
      *************************************/
@@ -597,6 +623,7 @@
       `;
       document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => { timerOverrideAcknowledged = e.target.checked; checkAllOverrides(); });
     }
+
     /*************************************
      * Process Data (Final Summary)
      *************************************/
@@ -769,6 +796,7 @@
         ${decisionHTML}
         ${categorisationHTML}`;
     }
+
     /*************************************
      * Decision Option Checks
      *************************************/
@@ -791,6 +819,7 @@
       }
       checkAllOverrides();
     }
+
     /*************************************
      * Build data6 and data7
      *************************************/
@@ -823,12 +852,13 @@
       items.push(Math.round(timeMin));
       return items.join(",");
     }
+
     /*************************************
+     * CHANGED OR NEW:
      * Final Submit Decision with Secure S3 Upload
-     * 
-     * Changes implemented:
-     * 1. When finalSubmitDecision() is triggered, the full-page PDF is captured (including final summary data)
-     * 2. The PDF is immediately uploaded to AWS to obtain the public URL before posting all data (data6, data7, data9)
+     * - Using capturePDFwithJSPDFHTML() 
+     * - Logging the final fetch call
+     * - Posting to data8 instead of data9 for debugging
      *************************************/
     function finalSubmitDecision() {
       const decisionOptions = document.getElementsByName("decisionOption");
@@ -855,7 +885,7 @@
         finalDecision = "Revisit - " + comment;
         finalReason = "";
       }
-      
+
       const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
@@ -878,7 +908,7 @@
       const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
       const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
       const loanRepayPct = safeDisposable > 0 ? (monthlyRepayment / safeDisposable) * 100 : 0;
-      
+
       let finalSec = stopTimer();
       let finalMin = finalSec / 60;
       let data6 = buildAffordabilityInput();
@@ -887,19 +917,23 @@
         gambPctIncome, gambPctDisposable, loanRepayPct,
         finalDecision, finalReason, finalMin
       );
-      
+
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
-      
-      // NEW ORDER: First capture the full-page PDF (which includes final summary data), upload it to AWS to get the URL,
-      // and then post all data (data6, data7, and data9) together.
-      captureScreenshotPDF()
+      debugLog("DEBUG: Using jsPDF.html() approach to generate PDF. Then uploading, then sending data to FLG with data8 for debugging...");
+
+      // 1) Generate PDF from #pdfContent
+      capturePDFwithJSPDFHTML()
       .then(pdfBlob => {
         const filename = generateFilename(leadId);
+        // 2) Upload to S3
         return uploadScreenshotSecure(pdfBlob, filename);
       })
       .then(screenshotUrl => {
-        debugLog("DEBUG: Screenshot uploaded successfully. URL: " + screenshotUrl);
+        debugLog("DEBUG: PDF uploaded to S3. Public URL: " + screenshotUrl);
+        debugLog("DEBUG: Submitting data to FLG, including data8 with the screenshot URL...");
+
+        // 3) Post to FLG, but using data8 (not data9) for debugging
         return fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
           method: "POST",
           credentials: "include",
@@ -908,27 +942,33 @@
             leadId,
             data6,
             data7,
-            data9: screenshotUrl
+            // CHANGED: posting screenshot URL to data8 instead of data9
+            data8: screenshotUrl
           })
         });
       })
-      .then(resp => resp.json())
+      .then(resp => {
+        debugLog("DEBUG: FLG update responded with status " + resp.status);
+        return resp.json();
+      })
       .then(respData => {
+        debugLog("DEBUG: FLG update response data:", respData);
         if (respData.error) {
           showAlert("Error updating FLG with screenshot: " + respData.error);
           debugLog("DEBUG: FLG update with screenshot error: " + respData.error);
         } else {
           finalSubmitted = true;
           showAlert("Confirmation - all information has successfully been submitted");
-          debugLog("DEBUG: FLG update with screenshot succeeded.");
+          debugLog("DEBUG: FLG update with screenshot succeeded. data8 should contain the URL now.");
         }
       })
       .catch(err => {
         console.error("Error during final submission:", err);
-        showAlert("Screenshot capture or upload failed. Please try again.");
+        showAlert("PDF generation or upload failed. Please try again.");
         debugLog("DEBUG: Error during final submission: " + err.message);
       });
     }
+
     /*************************************
      * Session Check
      *************************************/
@@ -965,7 +1005,12 @@
     <div id="alertMessage"></div>
     <button id="alertButton" onclick="closeAlert()">OK</button>
   </div>
-  <!-- Main container with id "pdfContent" so full-page capture includes all final summary data -->
+
+  <!-- 
+    CHANGED OR NEW:
+    Wrap all your content in a container with id="pdfContent"
+    so jsPDF.html() can process it as a single block. 
+  -->
   <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
     <!-- Top bar -->
     <div class="flex justify-between items-center mb-4">
