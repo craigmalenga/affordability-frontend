@@ -99,32 +99,33 @@
      *************************************/
     function debugLog(msg) {
       console.debug(msg);
-      // Debug output is suppressed in the on-screen debug window.
+      // On-screen debug output is suppressed.
     }
     /*************************************
      * Screenshot PDF & Secure S3 Upload Functions
      *************************************/
-    // Updated to capture the entire document and generate a multi-page PDF.
+    // Capture the full document as a multi-page PDF.
     function captureScreenshotPDF() {
       debugLog("DEBUG: Starting screenshot capture using html2canvas.");
-      return html2canvas(document.body, {
-        scrollY: -window.scrollY,
-        windowWidth: document.documentElement.scrollWidth,
-        windowHeight: document.documentElement.scrollHeight
+      return html2canvas(document.documentElement, {
+        scrollY: 0,
+        useCORS: true,
+        scale: 2
       }).then(canvas => {
         const imgData = canvas.toDataURL('image/png', 1.0);
         debugLog("DEBUG: Screenshot captured, converting to multi-page PDF.");
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'pt', 'a4');
+        let pdf = new jsPDF('p', 'pt', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgProps = pdf.getImageProperties(imgData);
+        // Calculate the image height in PDF dimensions.
         const imgWidth = pdfWidth;
-        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
         let heightLeft = imgHeight;
         let position = 0;
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pdfHeight;
+        // Add pages until all content is included.
         while (heightLeft > 0) {
           position = heightLeft - imgHeight;
           pdf.addPage();
@@ -146,14 +147,12 @@
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
-    // Upload the PDF blob to S3 and return the public URL.
+    // Upload PDF to S3 and return the public URL.
     function uploadScreenshotSecure(pdfBlob, filename) {
       return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
       .then(resp => resp.json())
       .then(data => {
-        if(data.error) {
-          throw new Error(data.error);
-        }
+        if (data.error) { throw new Error(data.error); }
         const presignedUrl = data.presigned_url;
         const publicUrl = data.public_url;
         debugLog("DEBUG: Obtained presigned URL: " + presignedUrl);
@@ -191,7 +190,7 @@
     let totalTimeSpentSeconds = 0;
     let finalProcessingInitiated = false;
     let finalDecision = "";
-    let finalSubmitted = false; // Trigger reload on final confirmation
+    let finalSubmitted = false;
     /*************************************
      * Centered Alert Functions
      *************************************/
@@ -203,9 +202,7 @@
     function closeAlert() {
       document.getElementById("alertOverlay").style.display = "none";
       document.getElementById("alertBox").style.display = "none";
-      if (finalSubmitted) {
-        window.location.reload();
-      }
+      if (finalSubmitted) { window.location.reload(); }
     }
     /*************************************
      * Timer Functions
@@ -889,7 +886,7 @@
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
       
-      // Capture the screenshot, upload to S3, then update FLG with the screenshot URL in data9.
+      // Capture the PDF, upload it, then update FLG with the screenshot URL (data9).
       captureScreenshotPDF()
       .then(pdfBlob => {
         const filename = generateFilename(leadId);
