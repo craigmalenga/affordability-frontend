@@ -39,9 +39,21 @@
       font-weight: bold;
       margin-bottom: 0.5rem;
     }
-    .warning-box { border: 1px solid #f87171; background-color: #fef2f2; color: #b91c1c; }
-    .time-box { border: 1px solid #facc15; background-color: #fefce8; color: #b45309; }
-    .decision-box { border: 1px solid #3b82f6; background-color: #dbeafe; color: #1e3a8a; }
+    .warning-box {
+      border: 1px solid #f87171;
+      background-color: #fef2f2;
+      color: #b91c1c;
+    }
+    .time-box {
+      border: 1px solid #facc15;
+      background-color: #fefce8;
+      color: #b45309;
+    }
+    .decision-box {
+      border: 1px solid #3b82f6;
+      background-color: #dbeafe;
+      color: #1e3a8a;
+    }
     #alertOverlay {
       display: none;
       position: fixed;
@@ -82,7 +94,10 @@
       border: 1px solid #ccc;
       padding: 8px;
     }
-    .summary-table th { background-color: #f9f9f9; text-align: left; }
+    .summary-table th {
+      background-color: #f9f9f9;
+      text-align: left;
+    }
     #debugOutput {
       margin-top: 1rem;
       padding: 8px;
@@ -104,7 +119,7 @@
     }
 
     /*************************************
-     * Show Processing Modal
+     * Show Processing Modal (Existing Alert Overlay)
      *************************************/
     function showProcessing() {
       const overlay = document.getElementById("alertOverlay");
@@ -126,7 +141,7 @@
     }
 
     /*************************************
-     * Improved PDF Capture Using html2canvas
+     * Improved PDF Capture Using html2canvas (Existing)
      *************************************/
     function captureScreenshotPDF() {
       debugLog("DEBUG: Starting screenshot capture using html2canvas with improved scale.");
@@ -158,6 +173,50 @@
         }
         debugLog("DEBUG: Multi-page PDF generated successfully.");
         return pdf.output('blob');
+      });
+    }
+
+    /*************************************
+     * NEW: Improved PDF Capture using jsPDF.html (just analysis & categorisations)
+     *************************************/
+    function capturePDFwithJSPDFHTML() {
+      debugLog("DEBUG: Starting improved PDF capture (just analysis & categorisations)");
+      return new Promise((resolve, reject) => {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'pt', 'a4');
+        // Clone only the section to include in the PDF
+        const analysisSection = document.querySelector(".decision-box")?.parentElement; // Container with all 3 sections
+        if (!analysisSection) {
+          return reject(new Error("Analysis section not found."));
+        }
+        const clonedSection = analysisSection.cloneNode(true);
+        // Remove the Process Decision section (if it exists)
+        const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
+        if (processDecision) processDecision.remove();
+        // Add heading manually
+        const leadId = document.getElementById("leadId").value.trim();
+        const heading = document.createElement("h2");
+        heading.innerText = `Affordability assessment for ${leadId}`;
+        heading.style.fontSize = "18pt";
+        heading.style.fontWeight = "bold";
+        heading.style.marginBottom = "16px";
+        clonedSection.insertBefore(heading, clonedSection.firstChild);
+        // Create wrapper so styles are respected
+        const wrapper = document.createElement("div");
+        wrapper.appendChild(clonedSection);
+        pdf.html(wrapper, {
+          callback: function (pdf) {
+            debugLog("DEBUG: PDF generated successfully.");
+            const pdfBlob = pdf.output('blob');
+            resolve(pdfBlob);
+          },
+          x: 20,
+          y: 20,
+          html2canvas: {
+            scale: 3, // High resolution
+            scrollY: -window.scrollY
+          }
+        });
       });
     }
 
@@ -440,19 +499,19 @@
           const rawVal = statement.data[`${rowIndex}_${monthIndex}`] || 0;
           const displayVal = formatNumericValue(rawVal);
           table += `<td class='border p-2'>
-              <input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}'
-                     class='border p-2 w-full rounded-md text-right'
-                     value="${displayVal}"
-                     onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})">
-            </td>`;
+                      <input type='text' id='${statementIndex}_${rowIndex}_${monthIndex}'
+                      class='border p-2 w-full rounded-md text-right'
+                      value="${displayVal}"
+                      onblur="saveData(${statementIndex}, ${rowIndex}, ${monthIndex})">
+                    </td>`;
         });
         table += "</tr>";
       });
       table += "</table>";
       table += `<button onclick='uploadBankData(${statementIndex})'
-                class='mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-full'>
-          Upload data for this bank to summary before processing
-        </button>`;
+                  class='mt-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-full'>
+                  Upload data for this bank to summary before processing
+                </button>`;
       formContainer.innerHTML = table;
     }
     function uploadBankData(statementIndex) {
@@ -632,13 +691,13 @@
         overrideText = overrideNormal;
       }
       timerDiv.innerHTML = `
-        <h3>Information on time you've taken to process this data:</h3>
-        <p>${message}</p>
-        <div class="mt-2">
-          <input type="checkbox" id="timerOverrideCheckbox" class="mr-2" />
-          <label for="timerOverrideCheckbox">${overrideText}</label>
-        </div>
-      `;
+         <h3>Information on time you've taken to process this data:</h3>
+         <p>${message}</p>
+         <div class="mt-2">
+           <input type="checkbox" id="timerOverrideCheckbox" class="mr-2" />
+           <label for="timerOverrideCheckbox">${overrideText}</label>
+         </div>
+       `;
       document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => { timerOverrideAcknowledged = e.target.checked; checkAllOverrides(); });
     }
 
@@ -782,15 +841,15 @@
           </button>
         </div>`;
       let categorisationHTML = `<div class="categorisations mt-4">
-        <h4 class="font-bold mb-2">CATEGORISATIONS</h4>`;
+          <h4 class="font-bold mb-2">CATEGORISATIONS</h4>`;
       statements.forEach(st => {
         let months = (dynamicMonths.length === 3) ? dynamicMonths : ["Month1", "Month2", "Month3"];
         categorisationHTML += `<h5 class="mt-4">${st.bank}</h5>`;
         categorisationHTML += `<table class="w-full border-collapse border border-gray-300 mt-2">
           <tr>
             <th class="border p-2">Category</th>`;
-        months.forEach(month => { 
-          categorisationHTML += `<th class="border p-2">${month}</th>`; 
+        months.forEach(month => {
+           categorisationHTML += `<th class="border p-2">${month}</th>`;
         });
         categorisationHTML += `</tr>`;
         categories.forEach((category, rowIndex) => {
@@ -871,16 +930,15 @@
     }
 
     /*************************************
-     * CHANGED OR NEW:
-     * Final Submit Decision with Secure S3 Upload
-     * - Uses captureScreenshotPDF() with improved scale.
-     * - Shows a "Processing..." modal before starting.
-     * - Explicitly posts data9 with the screenshot URL.
+     * FINAL SUBMIT DECISION with Secure S3 Upload
+     * - Uses capturePDFwithJSPDFHTML() for improved PDF capture.
+     * - Shows a “Processing...” overlay before starting.
+     * - Hides the overlay after submission (or if an error occurs).
      *************************************/
     function finalSubmitDecision() {
-      // Disable further submissions and show processing modal.
-      showProcessing();
-      
+      // Show the Processing Overlay before starting PDF capture.
+      document.getElementById("processingOverlay").style.display = "block";
+
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
       for (let opt of decisionOptions) {
@@ -888,7 +946,7 @@
       }
       const decBox = document.querySelector(".decision-box h3");
       if (!decBox) {
-        hideProcessing();
+        document.getElementById("processingOverlay").style.display = "none";
         showAlert("No decision box found. Did you process data first?");
         return;
       }
@@ -938,13 +996,11 @@
         gambPctIncome, gambPctDisposable, loanRepayPct,
         finalDecision, finalReason, finalMin
       );
-
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
       debugLog("DEBUG: Using screenshot-based PDF capture with improved scale. Then uploading, then sending data to FLG with data9.");
-
-      // 1) Generate PDF from #pdfContent
-      captureScreenshotPDF()
+      // 1) Generate PDF from analysis & categorisations using capturePDFwithJSPDFHTML()
+      capturePDFwithJSPDFHTML()
       .then(pdfBlob => {
         const filename = generateFilename(leadId);
         // 2) Upload PDF to S3
@@ -971,9 +1027,9 @@
         return resp.json();
       })
       .then(respData => {
+        // Hide the Processing Overlay once the process finishes.
+        document.getElementById("processingOverlay").style.display = "none";
         debugLog("DEBUG: FLG update response data:", respData);
-        // Remove processing modal before showing final message.
-        hideProcessing();
         if (respData.error) {
           showAlert("Error updating FLG with screenshot: " + respData.error);
           debugLog("DEBUG: FLG update with screenshot error: " + respData.error);
@@ -985,7 +1041,8 @@
       })
       .catch(err => {
         console.error("Error during final submission:", err);
-        hideProcessing();
+        // Hide the Processing Overlay on error.
+        document.getElementById("processingOverlay").style.display = "none";
         showAlert("PDF generation or upload failed. Please try again.");
         debugLog("DEBUG: Error during final submission: " + err.message);
       });
@@ -1027,7 +1084,7 @@
     <div id="alertMessage"></div>
     <button id="alertButton" onclick="closeAlert()">OK</button>
   </div>
-
+  
   <!-- Wrap all content in #pdfContent for full capture -->
   <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
     <!-- Top bar -->
@@ -1092,6 +1149,13 @@
     </button>
     <!-- Debug Output Area -->
     <div id="debugOutput"></div>
+  </div>
+
+  <!-- Processing Overlay (added outside #pdfContent) -->
+  <div id="processingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; text-align:center;">
+    <div style="position:relative; top:40%; font-size:1.5rem; font-weight:bold; color:#333;">
+      Processing your submission, please wait...
+    </div>
   </div>
 </body>
 </html>
