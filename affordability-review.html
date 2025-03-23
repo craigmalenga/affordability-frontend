@@ -241,10 +241,9 @@
      * Reset Form
      *************************************/
     function resetForm() {
-      document.getElementById("leadId").value = "";
       document.getElementById("fullName").value = "";
       document.getElementById("bankNames").value = "";
-      // The statement_urls textarea is kept for internal use but hidden.
+      // The hidden statement_urls element is still set for internal use.
       document.getElementById("statement_urls").value = "";
       document.getElementById("periodCovered").value = "";
       document.getElementById("monthlyRepayment").value = "";
@@ -288,9 +287,9 @@
             const bankNamesLines = data.bankNames.split(",").map(n => n.trim()).join("\n");
             document.getElementById("bankNames").value = bankNamesLines;
           }
-          // Although statement URLs are still fetched internally, they are not displayed.
           if (data.statement_urls) {
-            document.getElementById("statement_urls").value = data.statement_urls;
+            const urlsLines = data.statement_urls.split(",").map(u => u.trim()).join("\n");
+            document.getElementById("statement_urls").value = urlsLines;
           }
           document.getElementById("periodCovered").value = data.periodCovered || "";
           document.getElementById("monthlyRepayment").value = data.monthlyRepayment || "";
@@ -1031,8 +1030,11 @@
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     <label class="block mt-2">Period that Bank Statements cover:</label>
     <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-    <!-- The following textarea is kept for internal use but hidden from view -->
-    <textarea id="statement_urls" class="hidden" readonly></textarea>
+    <!-- Hidden Paths to Relevant Bank Statements -->
+    <div class="hidden">
+      <label class="block mt-2">Paths to Relevant Bank Statements:</label>
+      <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
+    </div>
     <label class="block mt-2">Monthly Repayments being Assessed for Affordability:</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
     <!-- Bank Statements -->
