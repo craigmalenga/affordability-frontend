@@ -99,8 +99,9 @@
      *************************************/
     function debugLog(msg) {
       console.debug(msg);
-      const debugOutput = document.getElementById("debugOutput");
-      if (debugOutput) { debugOutput.innerText += msg + "\n"; }
+      // The following lines are commented out to prevent text from showing in the debug window:
+      // const debugOutput = document.getElementById("debugOutput");
+      // if (debugOutput) { debugOutput.innerText += msg + "\n"; }
     }
     /*************************************
      * Screenshot PDF & Secure S3 Upload Functions
@@ -176,6 +177,7 @@
     let totalTimeSpentSeconds = 0;
     let finalProcessingInitiated = false;
     let finalDecision = "";
+    let finalSubmitted = false; // Global flag to trigger reload on final confirmation
     /*************************************
      * Centered Alert Functions
      *************************************/
@@ -187,6 +189,9 @@
     function closeAlert() {
       document.getElementById("alertOverlay").style.display = "none";
       document.getElementById("alertBox").style.display = "none";
+      if (finalSubmitted) {
+        window.location.reload();
+      }
     }
     /*************************************
      * Timer Functions
@@ -238,6 +243,7 @@
     function resetForm() {
       document.getElementById("fullName").value = "";
       document.getElementById("bankNames").value = "";
+      // Removed visible display for statement URLs; value is still set internally.
       document.getElementById("statement_urls").value = "";
       document.getElementById("periodCovered").value = "";
       document.getElementById("monthlyRepayment").value = "";
@@ -281,9 +287,9 @@
             const bankNamesLines = data.bankNames.split(",").map(n => n.trim()).join("\n");
             document.getElementById("bankNames").value = bankNamesLines;
           }
+          // Even though statement URLs are still fetched internally, we do not display them.
           if (data.statement_urls) {
-            const urlsLines = data.statement_urls.split(",").map(u => u.trim()).join("\n");
-            document.getElementById("statement_urls").value = urlsLines;
+            document.getElementById("statement_urls").value = data.statement_urls;
           }
           document.getElementById("periodCovered").value = data.periodCovered || "";
           document.getElementById("monthlyRepayment").value = data.monthlyRepayment || "";
@@ -727,13 +733,38 @@
             Submit Decision
           </button>
         </div>`;
+      // New Categorisations block inserted below the Submit Decision button:
+      let categorisationHTML = `<div class="categorisations mt-4">
+        <h4 class="font-bold mb-2">CATEGORISATIONS</h4>`;
+      statements.forEach(st => {
+        let months = (dynamicMonths.length === 3) ? dynamicMonths : ["Month1", "Month2", "Month3"];
+        categorisationHTML += `<h5 class="mt-4">${st.bank}</h5>`;
+        categorisationHTML += `<table class="w-full border-collapse border border-gray-300 mt-2">
+          <tr>
+            <th class="border p-2">Category</th>`;
+        months.forEach(month => { 
+          categorisationHTML += `<th class="border p-2">${month}</th>`; 
+        });
+        categorisationHTML += `</tr>`;
+        categories.forEach((category, rowIndex) => {
+          categorisationHTML += `<tr><td class="border p-2 font-semibold">${category}</td>`;
+          months.forEach((_, monthIndex) => {
+            let val = st.data[`${rowIndex}_${monthIndex}`] || 0;
+            categorisationHTML += `<td class="border p-2 text-right">${val.toFixed(2)}</td>`;
+          });
+          categorisationHTML += `</tr>`;
+        });
+        categorisationHTML += `</table>`;
+      });
+      categorisationHTML += `</div>`;
       const formDiv = document.getElementById("statementForm");
       formDiv.innerHTML = `<div class="bg-white p-4 mt-6 shadow-md">
           <h3 class="text-xl font-bold mb-4">Calculated Averages and Analysis</h3>
           ${summaryHTML}
         </div>
         ${decisionHTML}
-        ${processDecisionHTML}`;
+        ${processDecisionHTML}
+        ${categorisationHTML}`;
     }
     /*************************************
      * Decision Option Checks
@@ -792,69 +823,103 @@
     /*************************************
      * Final Submit Decision with Secure S3 Upload
      *************************************/
-     function finalSubmitDecision() {
-        const decisionOptions = document.getElementsByName("decisionOption");
-        let selected = "";
-        for (let opt of decisionOptions) {
-          if (opt.checked) { selected = opt.value; break; }
+    function finalSubmitDecision() {
+      const decisionOptions = document.getElementsByName("decisionOption");
+      let selected = "";
+      for (let opt of decisionOptions) {
+        if (opt.checked) { selected = opt.value; break; }
+      }
+      const decBox = document.querySelector(".decision-box h3");
+      if (!decBox) {
+        showAlert("No decision box found. Did you process data first?");
+        return;
+      }
+      const autoDecision = decBox.innerText.split(":")[1].trim();
+      const decParagraph = document.querySelector(".decision-box p");
+      let autoReason = decParagraph ? decParagraph.innerText.trim() : "";
+      let finalDecision = "";
+      let finalReason = "";
+      if (selected === "default") {
+        finalDecision = autoDecision;
+        finalReason = autoReason;
+      } else if (selected === "review") {
+        let comment = document.getElementById("reviewComment").value.trim();
+        comment = comment.replace(/,/g, "");
+        finalDecision = "Revisit - " + comment;
+        finalReason = "";
+      }
+      
+      const nBanks = statements.length;
+      const nMonths = dynamicMonths.length;
+      let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
+      statements.forEach(st => {
+        for (let m = 0; m < nMonths; m++) {
+          totalIncome += (st.data[`0_${m}`] || 0);
+          let exp = 0;
+          for (let r = 1; r <= 4; r++) { exp += (st.data[`${r}_${m}`] || 0); }
+          totalExpenses += exp;
+          totalGambling += (st.data[`5_${m}`] || 0);
         }
-        const decBox = document.querySelector(".decision-box h3");
-        if (!decBox) {
-          showAlert("No decision box found. Did you process data first?");
-          return;
+      });
+      const avgIncome = (nBanks * nMonths > 0) ? (totalIncome / (nBanks * nMonths)) : 0;
+      const avgExpenses = (nBanks * nMonths > 0) ? (totalExpenses / (nBanks * nMonths)) : 0;
+      const avgGambling = (nBanks * nMonths > 0) ? (totalGambling / (nBanks * nMonths)) : 0;
+      const avgDisposable = avgIncome - avgExpenses + avgGambling;
+      const safeDisposable = (avgDisposable > 0) ? avgDisposable : 0;
+      const safeIncome = (avgIncome > 0) ? avgIncome : 0;
+      const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
+      const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
+      const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
+      const loanRepayPct = safeDisposable > 0 ? (monthlyRepayment / safeDisposable) * 100 : 0;
+      
+      let finalSec = stopTimer();
+      let finalMin = finalSec / 60;
+      let data6 = buildAffordabilityInput();
+      let data7 = buildAffordabilityOutput(
+        avgIncome, avgExpenses, avgGambling, avgDisposable,
+        gambPctIncome, gambPctDisposable, loanRepayPct,
+        finalDecision, finalReason, finalMin
+      );
+      
+      const leadId = document.getElementById("leadId").value.trim();
+      debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
+      
+      // First, POST the FLG update data without the screenshot URL.
+      fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId,
+          data6,
+          data7,
+          data9: "" // Initially leaving screenshot URL empty
+        })
+      })
+      .then(resp => resp.json())
+      .then(respData => {
+        if (respData.error) {
+          showAlert("Error updating FLG: " + respData.error);
+          debugLog("DEBUG: FLG update error: " + respData.error);
+        } else {
+          debugLog("DEBUG: FLG update succeeded (initial update without screenshot).");
         }
-        const autoDecision = decBox.innerText.split(":")[1].trim();
-        const decParagraph = document.querySelector(".decision-box p");
-        let autoReason = decParagraph ? decParagraph.innerText.trim() : "";
-        let finalDecision = "";
-        let finalReason = "";
-        if (selected === "default") {
-          finalDecision = autoDecision;
-          finalReason = autoReason;
-        } else if (selected === "review") {
-          let comment = document.getElementById("reviewComment").value.trim();
-          comment = comment.replace(/,/g, "");
-          finalDecision = "Revisit - " + comment;
-          finalReason = "";
-        }
-        
-        const nBanks = statements.length;
-        const nMonths = dynamicMonths.length;
-        let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
-        statements.forEach(st => {
-          for (let m = 0; m < nMonths; m++) {
-            totalIncome += (st.data[`0_${m}`] || 0);
-            let exp = 0;
-            for (let r = 1; r <= 4; r++) { exp += (st.data[`${r}_${m}`] || 0); }
-            totalExpenses += exp;
-            totalGambling += (st.data[`5_${m}`] || 0);
-          }
-        });
-        const avgIncome = (nBanks * nMonths > 0) ? (totalIncome / (nBanks * nMonths)) : 0;
-        const avgExpenses = (nBanks * nMonths > 0) ? (totalExpenses / (nBanks * nMonths)) : 0;
-        const avgGambling = (nBanks * nMonths > 0) ? (totalGambling / (nBanks * nMonths)) : 0;
-        const avgDisposable = avgIncome - avgExpenses + avgGambling;
-        const safeDisposable = (avgDisposable > 0) ? avgDisposable : 0;
-        const safeIncome = (avgIncome > 0) ? avgIncome : 0;
-        const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
-        const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
-        const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
-        const loanRepayPct = safeDisposable > 0 ? (monthlyRepayment / safeDisposable) * 100 : 0;
-        
-        let finalSec = stopTimer();
-        let finalMin = finalSec / 60;
-        let data6 = buildAffordabilityInput();
-        let data7 = buildAffordabilityOutput(
-          avgIncome, avgExpenses, avgGambling, avgDisposable,
-          gambPctIncome, gambPctDisposable, loanRepayPct,
-          finalDecision, finalReason, finalMin
-        );
-        
-        const leadId = document.getElementById("leadId").value.trim();
-        debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
-        
-        // POST the FLG update data without the screenshot first
-        debugLog("DEBUG: Posting final decision update to FLG (without screenshot).");
+      })
+      .catch(err => {
+        console.error("Error updating FLG:", err);
+        showAlert("Error updating FLG. Check console for details.");
+        debugLog("DEBUG: Error updating FLG: " + err.message);
+      });
+      
+      debugLog("DEBUG: Capturing screenshot for FLG update.");
+      captureScreenshotPDF().then(pdfBlob => {
+        debugLog("DEBUG: Screenshot PDF captured.");
+        const filename = generateFilename(leadId);
+        debugLog("DEBUG: Requesting presigned URL for filename: " + filename);
+        return uploadScreenshotSecure(pdfBlob, filename);
+      }).then(screenshotUrl => {
+        debugLog("DEBUG: Screenshot uploaded successfully. URL: " + screenshotUrl);
+        // Now update FLG with the screenshot URL in data9:
         fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
           method: "POST",
           credentials: "include",
@@ -863,48 +928,32 @@
             leadId,
             data6,
             data7,
-            data9: "" // Leaving screenshot URL empty for now
+            data9: screenshotUrl
           })
         })
         .then(resp => resp.json())
         .then(respData => {
           if (respData.error) {
-            showAlert("Error updating FLG: " + respData.error);
-            debugLog("DEBUG: FLG update error: " + respData.error);
+            showAlert("Error updating FLG with screenshot: " + respData.error);
+            debugLog("DEBUG: FLG update with screenshot error: " + respData.error);
           } else {
-            showAlert("FLG updated successfully (without screenshot)!");
-            debugLog("DEBUG: FLG update succeeded.");
+            finalSubmitted = true;
+            showAlert("Confirmation - all information has successfully been submitted");
+            debugLog("DEBUG: FLG update with screenshot succeeded.");
           }
         })
         .catch(err => {
-          console.error("Error updating FLG:", err);
-          showAlert("Error updating FLG. Check console for details.");
-          debugLog("DEBUG: Error updating FLG: " + err.message);
+          console.error("Error updating FLG with screenshot:", err);
+          showAlert("Error updating FLG with screenshot. Check console for details.");
+          debugLog("DEBUG: Error updating FLG with screenshot: " + err.message);
         });
-        
-        // Optionally, if you want to later test the screenshot capture/upload,
-        // you can uncomment the code below:
-        
-        debugLog("DEBUG: Capturing screenshot for FLG update.");
-        captureScreenshotPDF().then(pdfBlob => {
-          debugLog("DEBUG: Screenshot PDF captured.");
-          const filename = generateFilename(leadId);
-          debugLog("DEBUG: Requesting presigned URL for filename: " + filename);
-          return uploadScreenshotSecure(pdfBlob, filename);
-        }).then(screenshotUrl => {
-          debugLog("DEBUG: Screenshot uploaded successfully. URL: " + screenshotUrl);
-          // Optionally, update FLG with the screenshot URL now
-          // fetch(... update FLG with data9: screenshotUrl ...)
-        }).catch(err => {
-          console.error("Screenshot or S3 Upload failed:", err);
-          showAlert("Screenshot capture or upload failed. Please try again.");
-          debugLog("DEBUG: Screenshot capture/upload error: " + err.message);
-        });
+      }).catch(err => {
+        console.error("Screenshot or S3 Upload failed:", err);
+        showAlert("Screenshot capture or upload failed. Please try again.");
+        debugLog("DEBUG: Screenshot capture/upload error: " + err.message);
+      });
     
-      }
-      
-
-
+    }
     /*************************************
      * Session Check
      *************************************/
@@ -962,17 +1011,6 @@
            class="h-16 mx-auto mb-2"/>
       <h1 class="text-2xl font-bold">Affordability Assessment</h1>
     </div>
-    <!-- Lead ID -->
-    <label for="leadId" class="block mt-4 font-medium">Enter Lead ID:</label>
-    <div class="flex gap-2 mt-2">
-      <input type="text" id="leadId" placeholder="123456789" class="border p-2 flex-1 rounded-md text-gray-600"/>
-      <button id="fetchDataBtn" onclick="fetchLeadData()"
-              class="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-blue-700" disabled>
-        Fetch Data
-      </button>
-    </div>
-    <!-- Timer -->
-    <div id="timerDisplay" class="mt-4 font-semibold">Timer: 0:00:00</div>
     <!-- Lead Details -->
     <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
     <label class="block mt-2">Full Name:</label>
@@ -981,8 +1019,8 @@
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     <label class="block mt-2">Period that Bank Statements cover:</label>
     <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-    <label class="block mt-2">Paths to Relevant Bank Statements:</label>
-    <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
+    <!-- The following textarea is kept for internal use but hidden from view -->
+    <textarea id="statement_urls" class="hidden" readonly></textarea>
     <label class="block mt-2">Monthly Repayments being Assessed for Affordability:</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
     <!-- Bank Statements -->
