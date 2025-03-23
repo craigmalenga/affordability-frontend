@@ -99,25 +99,39 @@
      *************************************/
     function debugLog(msg) {
       console.debug(msg);
-      // The following lines are commented out to prevent text from showing in the debug window:
-      // const debugOutput = document.getElementById("debugOutput");
-      // if (debugOutput) { debugOutput.innerText += msg + "\n"; }
+      // Debug output is suppressed in the on-screen debug window.
     }
     /*************************************
      * Screenshot PDF & Secure S3 Upload Functions
      *************************************/
+    // Updated to capture the entire document and generate a multi-page PDF.
     function captureScreenshotPDF() {
       debugLog("DEBUG: Starting screenshot capture using html2canvas.");
-      return html2canvas(document.body).then(canvas => {
-        const imgData = canvas.toDataURL('image/jpeg', 1.0);
-        debugLog("DEBUG: Screenshot captured, converting to PDF.");
+      return html2canvas(document.body, {
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight
+      }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        debugLog("DEBUG: Screenshot captured, converting to multi-page PDF.");
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgProps = pdf.getImageProperties(imgData);
+        const pdf = new jsPDF('p', 'pt', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        debugLog("DEBUG: PDF generated successfully.");
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgWidth = pdfWidth;
+        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pdfHeight;
+        }
+        debugLog("DEBUG: Multi-page PDF generated successfully.");
         return pdf.output('blob');
       });
     }
@@ -132,7 +146,7 @@
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
-    // New secure upload: Get a presigned URL from backend and then PUT the PDF blob
+    // Upload the PDF blob to S3 and return the public URL.
     function uploadScreenshotSecure(pdfBlob, filename) {
       return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
       .then(resp => resp.json())
@@ -177,7 +191,7 @@
     let totalTimeSpentSeconds = 0;
     let finalProcessingInitiated = false;
     let finalDecision = "";
-    let finalSubmitted = false; // Global flag to trigger reload on final confirmation
+    let finalSubmitted = false; // Trigger reload on final confirmation
     /*************************************
      * Centered Alert Functions
      *************************************/
@@ -243,7 +257,6 @@
     function resetForm() {
       document.getElementById("fullName").value = "";
       document.getElementById("bankNames").value = "";
-      // The hidden statement_urls element is still set for internal use.
       document.getElementById("statement_urls").value = "";
       document.getElementById("periodCovered").value = "";
       document.getElementById("monthlyRepayment").value = "";
@@ -484,11 +497,7 @@
         }
         const reviewComment = document.getElementById("reviewComment");
         const commentVal = reviewComment ? reviewComment.value.trim() : "";
-        if (!allEntered || selected === "" || (selected === "review" && !commentVal)) {
-          finalSubmitBtn.disabled = true;
-        } else {
-          finalSubmitBtn.disabled = false;
-        }
+        finalSubmitBtn.disabled = (!allEntered || selected === "" || (selected === "review" && !commentVal));
       }
     }
     /*************************************
@@ -510,11 +519,7 @@
         }
         const reviewComment = document.getElementById("reviewComment");
         const commentVal = reviewComment ? reviewComment.value.trim() : "";
-        if (!allOk || selected === "" || (selected === "review" && !commentVal)) {
-          finalSubmitBtn.disabled = true;
-        } else {
-          finalSubmitBtn.disabled = false;
-        }
+        finalSubmitBtn.disabled = (!allOk || selected === "" || (selected === "review" && !commentVal));
       }
     }
     function renderOverrideCheckboxes() {
@@ -762,8 +767,8 @@
           <h3 class="text-xl font-bold mb-4">Calculated Averages and Analysis</h3>
           ${summaryHTML}
         </div>
-        ${decisionHTML}
         ${processDecisionHTML}
+        ${decisionHTML}
         ${categorisationHTML}`;
     }
     /*************************************
@@ -884,43 +889,15 @@
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
       
-      // First, POST the FLG update data without the screenshot URL.
-      fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          leadId,
-          data6,
-          data7,
-          data9: "" // Initially leaving screenshot URL empty
-        })
-      })
-      .then(resp => resp.json())
-      .then(respData => {
-        if (respData.error) {
-          showAlert("Error updating FLG: " + respData.error);
-          debugLog("DEBUG: FLG update error: " + respData.error);
-        } else {
-          debugLog("DEBUG: FLG update succeeded (initial update without screenshot).");
-        }
-      })
-      .catch(err => {
-        console.error("Error updating FLG:", err);
-        showAlert("Error updating FLG. Check console for details.");
-        debugLog("DEBUG: Error updating FLG: " + err.message);
-      });
-      
-      debugLog("DEBUG: Capturing screenshot for FLG update.");
-      captureScreenshotPDF().then(pdfBlob => {
-        debugLog("DEBUG: Screenshot PDF captured.");
+      // Capture the screenshot, upload to S3, then update FLG with the screenshot URL in data9.
+      captureScreenshotPDF()
+      .then(pdfBlob => {
         const filename = generateFilename(leadId);
-        debugLog("DEBUG: Requesting presigned URL for filename: " + filename);
         return uploadScreenshotSecure(pdfBlob, filename);
-      }).then(screenshotUrl => {
+      })
+      .then(screenshotUrl => {
         debugLog("DEBUG: Screenshot uploaded successfully. URL: " + screenshotUrl);
-        // Now update FLG with the screenshot URL in data9:
-        fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
+        return fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -930,29 +907,24 @@
             data7,
             data9: screenshotUrl
           })
-        })
-        .then(resp => resp.json())
-        .then(respData => {
-          if (respData.error) {
-            showAlert("Error updating FLG with screenshot: " + respData.error);
-            debugLog("DEBUG: FLG update with screenshot error: " + respData.error);
-          } else {
-            finalSubmitted = true;
-            showAlert("Confirmation - all information has successfully been submitted");
-            debugLog("DEBUG: FLG update with screenshot succeeded.");
-          }
-        })
-        .catch(err => {
-          console.error("Error updating FLG with screenshot:", err);
-          showAlert("Error updating FLG with screenshot. Check console for details.");
-          debugLog("DEBUG: Error updating FLG with screenshot: " + err.message);
         });
-      }).catch(err => {
-        console.error("Screenshot or S3 Upload failed:", err);
+      })
+      .then(resp => resp.json())
+      .then(respData => {
+        if (respData.error) {
+          showAlert("Error updating FLG with screenshot: " + respData.error);
+          debugLog("DEBUG: FLG update with screenshot error: " + respData.error);
+        } else {
+          finalSubmitted = true;
+          showAlert("Confirmation - all information has successfully been submitted");
+          debugLog("DEBUG: FLG update with screenshot succeeded.");
+        }
+      })
+      .catch(err => {
+        console.error("Error during final submission:", err);
         showAlert("Screenshot capture or upload failed. Please try again.");
-        debugLog("DEBUG: Screenshot capture/upload error: " + err.message);
+        debugLog("DEBUG: Error during final submission: " + err.message);
       });
-    
     }
     /*************************************
      * Session Check
