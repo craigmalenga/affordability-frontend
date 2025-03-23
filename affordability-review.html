@@ -12,7 +12,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- html2canvas (kept for fallback/line count) -->
+  <!-- html2canvas (kept for line-count) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- jsPDF library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -61,6 +61,7 @@
       border-radius: 8px;
       padding: 20px;
       z-index: 1000;
+      text-align: center;
     }
     #alertMessage { margin-bottom: 1rem; }
     #alertButton {
@@ -100,12 +101,32 @@
      *************************************/
     function debugLog(msg) {
       console.debug(msg);
-      // Optionally, append to #debugOutput for visual logging.
+    }
+
+    /*************************************
+     * Show Processing Modal
+     *************************************/
+    function showProcessing() {
+      const overlay = document.getElementById("alertOverlay");
+      const alertBox = document.getElementById("alertBox");
+      const alertMessage = document.getElementById("alertMessage");
+      const alertButton = document.getElementById("alertButton");
+      alertMessage.innerText = "Processing... Please wait.";
+      alertButton.style.display = "none";  // Hide the OK button during processing
+      overlay.style.display = "block";
+      alertBox.style.display = "block";
+    }
+    function hideProcessing() {
+      const overlay = document.getElementById("alertOverlay");
+      const alertBox = document.getElementById("alertBox");
+      const alertButton = document.getElementById("alertButton");
+      overlay.style.display = "none";
+      alertBox.style.display = "none";
+      alertButton.style.display = "block";  // Restore OK button
     }
 
     /*************************************
      * Improved PDF Capture Using html2canvas
-     * Captures the content within #pdfContent at scale 3.
      *************************************/
     function captureScreenshotPDF() {
       debugLog("DEBUG: Starting screenshot capture using html2canvas with improved scale.");
@@ -141,7 +162,7 @@
     }
 
     /*************************************
-     * Generate a unique filename for PDF upload
+     * Generate a Unique Filename
      *************************************/
     function generateFilename(leadId) {
       const randomNum = Math.floor(100000000 + Math.random() * 900000000);
@@ -156,7 +177,7 @@
     }
 
     /*************************************
-     * Upload PDF to AWS S3 and return public URL
+     * Upload PDF to AWS S3 and Return Public URL
      *************************************/
     function uploadScreenshotSecure(pdfBlob, filename) {
       return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
@@ -852,11 +873,14 @@
     /*************************************
      * CHANGED OR NEW:
      * Final Submit Decision with Secure S3 Upload
-     * - Using capturePDFwithJSPDFHTML() (improved approach is commented out; we are using the screenshot-based function with improved scale)
-     * - Explicitly posting data9 with the screenshot URL
-     * - Logging the final fetch call for debugging
+     * - Uses captureScreenshotPDF() with improved scale.
+     * - Shows a "Processing..." modal before starting.
+     * - Explicitly posts data9 with the screenshot URL.
      *************************************/
     function finalSubmitDecision() {
+      // Disable further submissions and show processing modal.
+      showProcessing();
+      
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
       for (let opt of decisionOptions) {
@@ -864,6 +888,7 @@
       }
       const decBox = document.querySelector(".decision-box h3");
       if (!decBox) {
+        hideProcessing();
         showAlert("No decision box found. Did you process data first?");
         return;
       }
@@ -916,13 +941,13 @@
 
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
-      debugLog("DEBUG: Using screenshot-based PDF capture with improved scale. Then uploading, then sending data to FLG with data9 for debugging...");
+      debugLog("DEBUG: Using screenshot-based PDF capture with improved scale. Then uploading, then sending data to FLG with data9.");
 
       // 1) Generate PDF from #pdfContent
       captureScreenshotPDF()
       .then(pdfBlob => {
         const filename = generateFilename(leadId);
-        // 2) Upload to S3
+        // 2) Upload PDF to S3
         return uploadScreenshotSecure(pdfBlob, filename);
       })
       .then(screenshotUrl => {
@@ -947,6 +972,8 @@
       })
       .then(respData => {
         debugLog("DEBUG: FLG update response data:", respData);
+        // Remove processing modal before showing final message.
+        hideProcessing();
         if (respData.error) {
           showAlert("Error updating FLG with screenshot: " + respData.error);
           debugLog("DEBUG: FLG update with screenshot error: " + respData.error);
@@ -958,6 +985,7 @@
       })
       .catch(err => {
         console.error("Error during final submission:", err);
+        hideProcessing();
         showAlert("PDF generation or upload failed. Please try again.");
         debugLog("DEBUG: Error during final submission: " + err.message);
       });
