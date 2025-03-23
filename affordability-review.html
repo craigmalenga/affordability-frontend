@@ -181,62 +181,67 @@
      *************************************/
      function capturePDFwithJSPDFHTML() {
         debugLog("DEBUG: Starting improved PDF capture (just analysis & categorisations)");
+      
         return new Promise((resolve, reject) => {
           const { jsPDF } = window.jspdf;
           const pdf = new jsPDF('p', 'pt', 'a4');
       
-          // Find the container with analysis and categorisations
+          // Find the analysis section (assumed to be the parent container of .decision-box)
           const analysisSection = document.querySelector(".decision-box")?.parentElement;
           if (!analysisSection) {
             return reject(new Error("Analysis section not found."));
           }
-          // Clone the container
-          const clonedSection = analysisSection.cloneNode(true);
       
-          // Remove the Process Decision section (if it exists)
-          const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
-          if (processDecision) processDecision.remove();
+          // Create a dedicated container for the PDF content
+          const pdfContainer = document.createElement("div");
+          pdfContainer.style.width = "800px";           // Fixed width to control scaling
+          pdfContainer.style.fontFamily = "sans-serif";
+          pdfContainer.style.color = "#000";
+          pdfContainer.style.backgroundColor = "#fff";
+          pdfContainer.style.padding = "20px";
       
-          // Create Belmond logo element
+          // Add the Belmond logo at the top
           const belmondLogo = document.createElement("img");
-          // Make sure to use your actual logo URL if different
           belmondLogo.src = "https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true";
           belmondLogo.style.width = "150px";
           belmondLogo.style.display = "block";
           belmondLogo.style.marginBottom = "16px";
+          belmondLogo.crossOrigin = "anonymous"; // helps with CORS issues
+          pdfContainer.appendChild(belmondLogo);
       
-          // Create heading element
+          // Retrieve the full name and lead ID for the heading
+          const fullName = document.getElementById("fullName").value.trim();
           const leadId = document.getElementById("leadId").value.trim();
+      
+          // Create the heading with the requested text format
           const heading = document.createElement("h2");
-          heading.innerText = `Affordability assessment for ${leadId}`;
+          // Format: "Affordability Assessment <space> [Name] - <Lead ID>"
+          heading.innerText = `Affordability Assessment ${fullName ? fullName + " " : ""}- ${leadId}`;
           heading.style.fontSize = "18pt";
           heading.style.fontWeight = "bold";
           heading.style.marginBottom = "16px";
+          pdfContainer.appendChild(heading);
       
-          // Insert logo and heading at the top (logo first, then heading)
-          clonedSection.insertBefore(belmondLogo, clonedSection.firstChild);
-          clonedSection.insertBefore(heading, belmondLogo.nextSibling);
+          // Clone the analysis section and remove unwanted elements (like the finalSubmit button)
+          const clonedSection = analysisSection.cloneNode(true);
+          const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
+          if (processDecision) processDecision.remove();
+          pdfContainer.appendChild(clonedSection);
       
-          // Wrap the cloned section in a container with a fixed width
-          const wrapper = document.createElement("div");
-          wrapper.style.width = "700px";  // Adjust this value to control the PDF zoom
-          wrapper.appendChild(clonedSection);
-      
-          // Render the HTML into the PDF
-          pdf.html(wrapper, {
+          // Render the container into the PDF using jsPDF.html
+          pdf.html(pdfContainer, {
             callback: function (pdf) {
               debugLog("DEBUG: PDF generated successfully.");
               const pdfBlob = pdf.output('blob');
               resolve(pdfBlob);
             },
-            x: 20,
-            y: 20,
-            width: 555,          // Content width within the PDF page
-            windowWidth: 800,    // Virtual browser width for html2canvas
+            x: 10,         // left margin in PDF
+            y: 10,         // top margin in PDF
+            width: 550,    // content width in PDF points; adjust if needed
             html2canvas: {
-              scale: 0.6,          // Adjust this scale as needed (e.g., try 1.5 or 2)
-              scrollY: -window.scrollY,
-              useCORS: true      // Enable cross-origin images
+              scale: 0.55,  // set scale to 0.55 as requested
+              useCORS: true,
+              scrollY: -window.scrollY
             }
           });
         });
