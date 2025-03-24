@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Belmond &amp; Co - Main Menu</title>
   
-  <!-- Favicon snippets -->
+  <!-- Favicon snippets (adjust paths as needed) -->
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="shortcut icon" href="/favicon.ico" />
@@ -15,15 +15,24 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- Example of a font-face for Brandon Grotesque (adjust if you have a different source) -->
+  <!--
+    <style>
+      @font-face {
+        font-family: 'Brandon Grotesque';
+        src: url('path/to/BrandonGrotesque-Bold.woff2') format('woff2');
+        font-weight: bold;
+        font-style: normal;
+      }
+    </style>
+  -->
+
   <style>
     body {
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      /* 
-        Replacing the image background with a gradient.
-        Adjust the percentages to shift how quickly it transitions between colors.
-      */
+      /* Gradient background */
       background: linear-gradient(
         to bottom right,
         #5D2C6D 0%,
@@ -31,37 +40,46 @@
         #2E2F43 100%
       );
     }
+    /* Utility class for Brandon Grotesque (fallback to sans-serif) */
+    .brand-font {
+      font-family: "Brandon Grotesque", sans-serif;
+      font-weight: bold;
+    }
+    /* Fixed logo in bottom-right corner */
+    .fixed-bottom-right-logo {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: auto;
+    }
   </style>
 
   <script defer>
-    // Check session
+    // If you still want to check session status, you can do so here
     async function checkSession() {
       try {
-        const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
+        const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", {
+          credentials: "include"
+        });
         const data = await resp.json();
-        const loginBtn = document.getElementById("loginBtn");
-        if (data.logged_in) {
-          loginBtn.textContent = "Logged in with Microsoft 365";
-          loginBtn.className = "bg-green-600 text-white px-4 py-2 rounded-md";
-        } else {
-          loginBtn.textContent = "Log in with Microsoft 365";
-          loginBtn.className = "bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700";
-        }
+        // If not logged in, handle in your code (e.g., prompt user or redirect upon button click)
       } catch (error) {
         console.error("Session check failed:", error);
       }
     }
 
-    // Actually log in
-    function handleLogin() {
-      window.location.href = "https://web-production-15e92.up.railway.app/login";
-    }
-
-    // Buttons for LHS / RHS
+    // Redirect to upload page
     function goUpload() {
+      // Check if logged in, if not, run your login flow
+      // Otherwise, continue to upload page
       window.location.href = "upload.html";
     }
+
+    // Redirect to affordability review page
     function goReview() {
+      // Check if logged in, if not, run your login flow
+      // Otherwise, continue to review page
       window.location.href = "affordability-review.html";
     }
 
@@ -71,34 +89,51 @@
   </script>
 </head>
 <body>
-  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
-    <!-- Top area with single login button -->
-    <div class="flex justify-end mb-4">
-      <button id="loginBtn" onclick="handleLogin()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
-        Log in with Microsoft 365
-      </button>
-    </div>
 
-    <!-- Logo -->
-    <img
-      src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true"
-      alt="Company Logo"
-      class="h-16 w-auto mx-auto mb-4"
-    />
-    
-    <!-- Titles -->
-    <h1 class="text-2xl font-bold mb-2">Belmond &amp; Co Claims Management</h1>
-    <p class="text-2xl font-bold mb-8">Affordability Assessment Portal</p>
-    
+  <!-- Top bar -->
+  <div class="w-full" style="background-color: #D12472;">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center">
+      <!-- O-logo (scaled smaller) -->
+      <img
+        src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png"
+        alt="O-logo"
+        class="h-8 w-auto mr-4"
+      />
+      <!-- BELMOND text in brand font -->
+      <span class="text-white text-2xl brand-font">BELMOND</span>
+    </div>
+  </div>
+
+  <!-- Main content area -->
+  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
+    <!-- Main heading or subheading if needed -->
+    <h1 class="text-2xl brand-font mb-4">Affordability Assessment Portal</h1>
+
     <!-- Option Buttons -->
     <div class="flex justify-center gap-4">
-      <button onclick="goUpload()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-72 text-center">
-        Upload Statements<br>from SharePoint to AWS
+      <button
+        onclick="goUpload()"
+        class="brand-font text-white px-6 py-3 rounded-full"
+        style="background-color: #007EB4;"
+      >
+        Upload bank statements
       </button>
-      <button onclick="goReview()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 w-72 text-center">
-        Carry out Affordability<br>Assessment on a LeadID
+      <button
+        onclick="goReview()"
+        class="brand-font text-white px-6 py-3 rounded-full"
+        style="background-color: #90268E;"
+      >
+        Affordability assessment
       </button>
     </div>
   </div>
+
+  <!-- Fixed logo at bottom right -->
+  <img
+    src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png"
+    alt="Fixed O-logo"
+    class="fixed-bottom-right-logo"
+  />
+
 </body>
 </html>
