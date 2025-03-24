@@ -20,10 +20,18 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
-      background-size: cover;
+      /* 
+        Replacing the image background with a gradient.
+        Adjust the percentages to shift how quickly it transitions between colors.
+      */
+      background: linear-gradient(
+        to bottom right,
+        #5D2C6D 10%,
+        #2E2F43 90%
+      );
     }
   </style>
+
   <script defer>
     // Check session
     async function checkSession() {
@@ -71,9 +79,11 @@
     </div>
 
     <!-- Logo -->
-    <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true"
-         alt="Company Logo"
-         class="h-16 w-auto mx-auto mb-4" />
+    <img
+      src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true"
+      alt="Company Logo"
+      class="h-16 w-auto mx-auto mb-4"
+    />
     
     <!-- Titles -->
     <h1 class="text-2xl font-bold mb-2">Belmond &amp; Co Claims Management</h1>
