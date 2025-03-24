@@ -127,7 +127,7 @@
       const alertMessage = document.getElementById("alertMessage");
       const alertButton = document.getElementById("alertButton");
       alertMessage.innerText = "Processing... Please wait.";
-      alertButton.style.display = "none";
+      alertButton.style.display = "none";  // Hide the OK button during processing
       overlay.style.display = "block";
       alertBox.style.display = "block";
     }
@@ -137,7 +137,7 @@
       const alertButton = document.getElementById("alertButton");
       overlay.style.display = "none";
       alertBox.style.display = "none";
-      alertButton.style.display = "block";
+      alertButton.style.display = "block";  // Restore OK button
     }
 
     /*************************************
@@ -181,25 +181,34 @@
      *************************************/
      function capturePDFwithJSPDFHTML() {
       debugLog("DEBUG: Starting improved PDF capture (just analysis & categorisations)");
+    
       return new Promise((resolve, reject) => {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'pt', 'a4');
+    
+        // 1. Locate the analysis section (assumed to be the parent container of .decision-box)
         const analysisSection = document.querySelector(".decision-box")?.parentElement;
         if (!analysisSection) {
           return reject(new Error("Analysis section not found."));
         }
+    
+        // 2. Create a dedicated container for the PDF content
         const pdfContainer = document.createElement("div");
-        pdfContainer.style.width = "800px";
+        pdfContainer.style.width = "800px"; // fixed width to control scaling
         pdfContainer.style.fontFamily = "sans-serif";
         pdfContainer.style.color = "#000";
         pdfContainer.style.backgroundColor = "#fff";
         pdfContainer.style.padding = "20px";
+    
+        // 3. Append a style element to ensure all table cells are vertically centered
         const styleElem = document.createElement("style");
         styleElem.innerHTML = `
           table { border-collapse: collapse; }
           td, th { vertical-align: middle !important; }
         `;
         pdfContainer.appendChild(styleElem);
+    
+        // 4. Add the Belmond logo using a background image (alternative approach)
         const logoContainer = document.createElement("div");
         logoContainer.style.width = "150px";
         logoContainer.style.height = "auto";
@@ -209,6 +218,8 @@
         logoContainer.style.backgroundRepeat = "no-repeat";
         logoContainer.style.backgroundPosition = "center";
         pdfContainer.appendChild(logoContainer);
+    
+        // 5. Create the heading with the text "Affordability Assessment - " then [Name] and Lead ID
         const fullName = document.getElementById("fullName").value.trim();
         const leadId = document.getElementById("leadId").value.trim();
         const heading = document.createElement("h2");
@@ -217,24 +228,30 @@
         heading.style.fontWeight = "bold";
         heading.style.marginBottom = "16px";
         pdfContainer.appendChild(heading);
+    
+        // 6. Clone the analysis section and remove any unwanted elements (e.g., finalSubmit button)
         const clonedSection = analysisSection.cloneNode(true);
         const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
         if (processDecision) processDecision.remove();
         pdfContainer.appendChild(clonedSection);
+    
+        // 7. Prevent generating a PDF if content is blank
         if (!pdfContainer.innerText.trim()) {
           return reject(new Error("PDF content is blank."));
         }
+    
+        // 8. Render the container into the PDF using jsPDF.html
         pdf.html(pdfContainer, {
           callback: function (pdf) {
             debugLog("DEBUG: PDF generated successfully.");
             const pdfBlob = pdf.output('blob');
             resolve(pdfBlob);
           },
-          x: 10,
-          y: 10,
-          width: 550,
+          x: 10,    // left margin in PDF
+          y: 10,    // top margin in PDF
+          width: 550, // content width in PDF points (adjust as needed)
           html2canvas: {
-            scale: 0.55,
+            scale: 0.55, // set to 0.55 as requested for a "zoomed out" result
             useCORS: true,
             scrollY: -window.scrollY
           }
@@ -242,6 +259,7 @@
       });
     }
     
+
     /*************************************
      * Generate a Unique Filename
      *************************************/
@@ -256,7 +274,7 @@
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
-    
+
     /*************************************
      * Upload PDF to AWS S3 and Return Public URL
      *************************************/
@@ -283,7 +301,7 @@
         });
       });
     }
-    
+
     /*************************************
      * Global Variables and Timer Functions
      *************************************/
@@ -304,7 +322,7 @@
     let finalProcessingInitiated = false;
     let finalDecision = "";
     let finalSubmitted = false;
-    
+
     /*************************************
      * Centered Alert Functions
      *************************************/
@@ -318,7 +336,7 @@
       document.getElementById("alertBox").style.display = "none";
       if (finalSubmitted) { window.location.reload(); }
     }
-    
+
     /*************************************
      * Timer Functions
      *************************************/
@@ -340,14 +358,14 @@
       totalTimeSpentSeconds = Math.floor((new Date() - startTime) / 1000);
       return totalTimeSpentSeconds;
     }
-    
+
     /*************************************
      * Numeric Formatting
      *************************************/
     function formatNumericValue(num) {
       return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    
+
     /*************************************
      * Save Data
      *************************************/
@@ -365,7 +383,7 @@
         checkAllOverrides();
       }
     }
-    
+
     /*************************************
      * Reset Form
      *************************************/
@@ -392,7 +410,7 @@
       processBtn.style.backgroundColor = "red";
       processBtn.innerText = "Process Data";
     }
-    
+
     /*************************************
      * Fetch Lead Data
      *************************************/
@@ -453,7 +471,7 @@
           showAlert("Unable to retrieve data – check Lead ID being entered and if issue persists, speak to a line manager");
         });
     }
-    
+
     /*************************************
      * Create Statement Links
      *************************************/
@@ -486,7 +504,7 @@
         pdfContainer.appendChild(container);
       });
     }
-    
+
     /*************************************
      * Create Load Prior Input Button
      *************************************/
@@ -503,7 +521,7 @@
       loadPriorBtnContainer.appendChild(loadPriorBtn);
       bankStatementsDiv.appendChild(loadPriorBtnContainer);
     }
-    
+
     /*************************************
      * Load Statement Form
      *************************************/
@@ -553,7 +571,7 @@
       }
       checkProcessButton();
     }
-    
+
     /*************************************
      * Load Prior Input Data
      *************************************/
@@ -600,7 +618,7 @@
         showAlert("Prior input data loaded for matching bank accounts.");
       }
     }
-    
+
     /*************************************
      * Check Process Button
      *************************************/
@@ -621,7 +639,7 @@
         finalSubmitBtn.disabled = (!allEntered || selected === "" || (selected === "review" && !commentVal));
       }
     }
-    
+
     /*************************************
      * Override Check Functions
      *************************************/
@@ -680,7 +698,7 @@
         }
       }
     }
-    
+
     /*************************************
      * Render Timer Override Box
      *************************************/
@@ -722,7 +740,7 @@
        `;
       document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => { timerOverrideAcknowledged = e.target.checked; checkAllOverrides(); });
     }
-    
+
     /*************************************
      * Process Data (Final Summary)
      *************************************/
@@ -894,7 +912,7 @@
         ${decisionHTML}
         ${categorisationHTML}`;
     }
-    
+
     /*************************************
      * Decision Option Checks
      *************************************/
@@ -917,7 +935,7 @@
       }
       checkAllOverrides();
     }
-    
+
     /*************************************
      * Build data6 and data7
      *************************************/
@@ -950,13 +968,17 @@
       items.push(Math.round(timeMin));
       return items.join(",");
     }
-    
+
     /*************************************
      * FINAL SUBMIT DECISION with Secure S3 Upload
+     * - Uses capturePDFwithJSPDFHTML() for improved PDF capture.
+     * - Shows a “Processing...” overlay before starting.
+     * - Hides the overlay after submission (or if an error occurs).
      *************************************/
     function finalSubmitDecision() {
+      // Show the Processing Overlay before starting PDF capture.
       document.getElementById("processingOverlay").style.display = "block";
-    
+
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
       for (let opt of decisionOptions) {
@@ -982,7 +1004,7 @@
         finalDecision = "Revisit - " + comment;
         finalReason = "";
       }
-    
+
       const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
@@ -1005,7 +1027,7 @@
       const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
       const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
       const loanRepayPct = safeDisposable > 0 ? (monthlyRepayment / safeDisposable) * 100 : 0;
-    
+
       let finalSec = stopTimer();
       let finalMin = finalSec / 60;
       let data6 = buildAffordabilityInput();
@@ -1017,14 +1039,17 @@
       const leadId = document.getElementById("leadId").value.trim();
       debugLog("DEBUG: Initiating final submission decision for Lead ID " + leadId);
       debugLog("DEBUG: Using screenshot-based PDF capture with improved scale. Then uploading, then sending data to FLG with data9.");
+      // 1) Generate PDF from analysis & categorisations using capturePDFwithJSPDFHTML()
       capturePDFwithJSPDFHTML()
       .then(pdfBlob => {
         const filename = generateFilename(leadId);
+        // 2) Upload PDF to S3
         return uploadScreenshotSecure(pdfBlob, filename);
       })
       .then(screenshotUrl => {
         debugLog("DEBUG: PDF uploaded to S3. Public URL: " + screenshotUrl);
         debugLog("DEBUG: Submitting data to FLG, including data9 with the screenshot URL...");
+        // 3) Post to FLG, explicitly setting data9 to the screenshot URL.
         return fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
           method: "POST",
           credentials: "include",
@@ -1042,6 +1067,7 @@
         return resp.json();
       })
       .then(respData => {
+        // Hide the Processing Overlay once the process finishes.
         document.getElementById("processingOverlay").style.display = "none";
         debugLog("DEBUG: FLG update response data:", respData);
         if (respData.error) {
@@ -1055,12 +1081,13 @@
       })
       .catch(err => {
         console.error("Error during final submission:", err);
+        // Hide the Processing Overlay on error.
         document.getElementById("processingOverlay").style.display = "none";
         showAlert("PDF generation or upload failed. Please try again.");
         debugLog("DEBUG: Error during final submission: " + err.message);
       });
     }
-    
+
     /*************************************
      * Session Check
      *************************************/
@@ -1107,9 +1134,8 @@
               class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
         Return to Main Menu
       </button>
-      <!-- Updated login button using state parameter -->
       <button id="loginBtn"
-              onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)"
+              onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
               class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
         Log in with Microsoft 365
       </button>
