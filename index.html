@@ -37,9 +37,9 @@
       }
     }
     
-    // Trigger login with a redirectTo parameter
+    // Trigger login with state parameter.
     function triggerLogin(redirectPage) {
-      window.location.href = "https://web-production-15e92.up.railway.app/login?redirectTo=" + encodeURIComponent(redirectPage);
+      window.location.href = "https://web-production-15e92.up.railway.app/login?state=" + encodeURIComponent(redirectPage);
     }
     
     // Handle click for Upload Statements (LHS)
