@@ -21,7 +21,7 @@
       color: #000;
       padding: 1rem;
       border-radius: 0.5rem;
-      max-height: 200px;
+      max-height: 250px;
       overflow-y: auto;
       font-size: 0.9rem;
       text-align: left;
@@ -73,8 +73,6 @@
       console.log(msg);
     }
 
-    const validFilenameRegex = /^[^-]+-[^-]+-[A-Za-z]{3}[0-9]{4}-[0-9]+\.pdf$/;
-
     // Check session on page load
     async function checkSession() {
       try {
@@ -106,22 +104,24 @@
         alert("Please paste your SharePoint folder link.");
         return;
       }
-      // Ensure the folderLink is added as a query parameter:
       const listUrl = "https://web-production-15e92.up.railway.app/list-files?folderLink=" + encodeURIComponent(folderLink);
-      logDebug("Attempting to list files using URL: " + listUrl);
+      logDebug("Starting file listing process for: " + listUrl);
       try {
         const response = await fetch(listUrl, { credentials: "include" });
         if (!response.ok) {
-          const result = await response.json();
-          throw new Error(result.error || "Unknown error listing files.");
+          const err = await response.json();
+          logDebug("Error from server: " + JSON.stringify(err));
+          throw new Error(JSON.stringify(err));
         }
-        const result = await response.json();
-        if (!result.value || !Array.isArray(result.value)) throw new Error("No files returned from backend.");
-        renderFileList(result.value);
-        logDebug(`Successfully retrieved ${result.value.length} files.`);
+        const data = await response.json();
+        if (!data.value || !Array.isArray(data.value)) {
+          throw new Error("No files returned from backend.");
+        }
+        renderFileList(data.value);
+        logDebug(`Successfully retrieved ${data.value.length} files.`);
       } catch (error) {
-        logDebug("Failed to list files: " + error);
-        alert("Failed to list files. See debug console below.");
+        logDebug("Error listing files: " + error);
+        alert("Failed to list files. See debug console for details.");
       }
     }
 
@@ -129,14 +129,8 @@
       const container = document.getElementById("filesContainer");
       container.innerHTML = "";
       files.forEach(file => {
-        const fileName = file.name || file;
         const div = document.createElement("div");
-        if (!validFilenameRegex.test(fileName)) {
-          div.innerHTML = `<span>${fileName}</span> <span class="warning">(Invalid Naming Format)</span>`;
-          logDebug(`Warning: File "${fileName}" does not match expected naming convention.`);
-        } else {
-          div.textContent = fileName;
-        }
+        div.textContent = file.name;
         div.className = "p-2 bg-gray-100 rounded my-1 text-left";
         container.appendChild(div);
       });
@@ -165,7 +159,19 @@
         if (!resp.ok) {
           throw new Error(result.error || "Unknown upload failure.");
         }
-        logDebug("Upload successful: " + JSON.stringify(result));
+        // Here is where we parse the step-by-step logs from sharepoint_uploader.py
+        logDebug("Upload successful: " + JSON.stringify(result.message));
+        if (result.output && result.output.steps) {
+          logDebug("----- Detailed Steps from sharepoint_uploader.py -----");
+          result.output.steps.forEach((stepObj, idx) => {
+            // For each step, display in debug console
+            const detailStr = JSON.stringify(stepObj);
+            logDebug(`Step ${idx + 1}: ${detailStr}`);
+          });
+          logDebug("----- End of Detailed Steps -----");
+        } else {
+          logDebug("No step-by-step logs found in response.");
+        }
         alert("Processing complete and upload successful!");
       } catch (err) {
         logDebug("Processing failed: " + err);
@@ -183,9 +189,11 @@
 </head>
 <body>
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
-    <!-- Not logged in warning -->
+    <!-- If not logged in, show a warning to return to main menu -->
     <div id="notLoggedInWarning">
-      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please return to the <a href="index.html" class="underline text-blue-600">Main Menu</a> to log in.</p>
+      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please return to the
+        <a href="index.html" class="underline text-blue-600">Main Menu</a> to log in.
+      </p>
     </div>
 
     <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true"
