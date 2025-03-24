@@ -69,6 +69,8 @@
   <script defer>
     // Global debug log array
     let debugLogMessages = [];
+
+    // Log messages to both the debug console element and browser console.
     function logDebug(message) {
       const timestamp = new Date().toLocaleTimeString();
       const msg = `[${timestamp}] ${message}`;
@@ -77,10 +79,10 @@
       consoleDiv.textContent += msg + "\n";
       console.log(msg);
     }
-    
-    // Regular expression for file naming validation.
+
+    // Regex for file naming validation: <LeadID>-<BankName>-<MmmYYYY>-<AccountNo>.pdf
     const validFilenameRegex = /^[^-]+-[^-]+-[A-Za-z]{3}[0-9]{4}-[0-9]+\.pdf$/;
-    
+
     // Check session status and update the top bar login status.
     async function checkSession() {
       try {
@@ -100,31 +102,34 @@
         logDebug("Error checking session status: " + err);
       }
     }
-    
-    // Login function using state so that after login the user returns to this page.
+
+    // Login function using state so that after login the user returns to the correct domain (frontend).
     async function handleLogin() {
-      logDebug("Redirecting to Microsoft login...");
-      window.location.href = "https://web-production-15e92.up.railway.app/login?state=" + encodeURIComponent(window.location.href);
+      // We want the user to come back to the FRONTEND domain: https://affordability-review-main-menu...
+      const currentPageOnFrontend = "https://affordability-review-main-menu.up.railway.app/upload.html";
+      logDebug("Redirecting to Microsoft login with state param: " + currentPageOnFrontend);
+      window.location.href = "https://web-production-15e92.up.railway.app/login?state=" + encodeURIComponent(currentPageOnFrontend);
     }
-    
-    // When List Files is pressed.
+
+    // List Files
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
         alert("Please paste your SharePoint folder link.");
         return;
       }
+      // The backend domain for listing files is web-production...
       const listUrl = "https://web-production-15e92.up.railway.app/list-files?folderLink=" + encodeURIComponent(folderLink);
       logDebug("Attempting to list files using URL: " + listUrl);
       try {
         const response = await fetch(listUrl, { credentials: "include" });
         if (response.status === 401) {
-          logDebug("❌ Unauthorized. Redirecting to login.");
+          logDebug("❌ Unauthorized. Will redirect to login.");
           handleLogin();
           return;
         }
         const result = await response.json();
-        logDebug("List Files response debug info: " + JSON.stringify(result.debug));
+        logDebug("List Files response debug info: " + JSON.stringify(result.debug || {}));
         if (!response.ok) throw new Error(JSON.stringify(result));
         if (!result.value || !Array.isArray(result.value)) throw new Error("No files returned from backend.");
         renderFileList(result.value);
@@ -134,8 +139,8 @@
         alert("Failed to list files. See debug console below.");
       }
     }
-    
-    // Render file list and flag naming errors.
+
+    // Render file list with validation checks
     function renderFileList(files) {
       const container = document.getElementById("filesContainer");
       container.innerHTML = "";
@@ -152,8 +157,8 @@
         container.appendChild(div);
       });
     }
-    
-    // Download debug log as text file.
+
+    // Download debug log as text file
     function saveDebugLog() {
       const blob = new Blob([debugLogMessages.join("\n")], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
@@ -163,22 +168,22 @@
       a.click();
       URL.revokeObjectURL(url);
     }
-    
-    // Disable/enable UI elements.
+
+    // Disable/enable UI
     function disableUI() {
       document.querySelectorAll("button, input, textarea").forEach(elem => elem.classList.add("disabled"));
     }
     function enableUI() {
       document.querySelectorAll("button, input, textarea").forEach(elem => elem.classList.remove("disabled"));
     }
-    
-    // Process Files: triggers renaming, AWS upload and FLG update.
+
+    // Process Files => triggers sharepoint_uploader.py
     async function handleProcessFiles() {
       disableUI();
       document.getElementById("processingOverlay").style.display = "block";
-      logDebug("Processing files – starting renaming, AWS upload, and FLG update...");
       const folderLink = document.getElementById("folderLink").value.trim();
-      logDebug("Folder link: " + folderLink);
+      logDebug("handleProcessFiles called. Folder link: " + folderLink);
+
       try {
         const response = await fetch("https://web-production-15e92.up.railway.app/trigger-statement-upload", {
           method: "POST",
@@ -188,8 +193,10 @@
         });
         const result = await response.json();
         logDebug("Response from trigger-statement-upload: " + JSON.stringify(result));
-        if (!response.ok) throw new Error(result.error || "Unknown upload failure.");
-        logDebug("✅ Upload successful! " + result.message);
+        if (!response.ok) {
+          throw new Error(result.error || "Unknown upload failure.");
+        }
+        logDebug("✅ Upload successful! " + (result.message || ""));
         alert("Processing complete and upload successful!");
       } catch (error) {
         logDebug("❌ Processing failed: " + error);
@@ -199,16 +206,18 @@
         document.getElementById("processingOverlay").style.display = "none";
       }
     }
-    
+
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
     });
   </script>
 </head>
 <body>
-  <!-- Top Bar with Return and Login Status -->
+  <!-- Top Bar with Return and Login Status - matches RHS layout -->
   <div id="topBar">
-    <button onclick="window.location.href='index.html'" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+    <button 
+      onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'"
+      class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
       Return to Main Menu
     </button>
     <button id="loginStatusBtn" onclick="handleLogin()">
@@ -217,27 +226,47 @@
   </div>
   
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
-    <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true" 
-         alt="Company Logo" 
-         class="h-16 mx-auto mb-4" />
+    <img 
+      src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true" 
+      alt="Company Logo" 
+      class="h-16 mx-auto mb-4" 
+    />
     <h1 class="text-2xl font-bold mb-4">SharePoint to AWS Uploader</h1>
     
-    <!-- (Removed duplicate login button here) -->
-    
+    <!-- Removed duplicate login button from main content -->
+
     <div class="mb-4">
       <label for="folderLink" class="block font-medium mb-2">Paste SharePoint Folder Link:</label>
-      <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
+      <input 
+        type="text" 
+        id="folderLink" 
+        placeholder="https://yoursharepointurl" 
+        class="border p-2 rounded-md w-full" 
+      />
     </div>
     
     <div class="flex flex-col gap-4 items-center">
-      <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+      <button 
+        id="listFilesBtn" 
+        onclick="handleListFiles()" 
+        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+      >
         List Files (SharePoint)
       </button>
+
       <div id="filesContainer" class="mt-2 w-full"></div>
-      <button onclick="handleProcessFiles()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+
+      <button 
+        onclick="handleProcessFiles()" 
+        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+      >
         Process Files
       </button>
-      <button onclick="saveDebugLog()" class="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 mt-2">
+
+      <button 
+        onclick="saveDebugLog()" 
+        class="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 mt-2"
+      >
         Save Debug Log
       </button>
     </div>
