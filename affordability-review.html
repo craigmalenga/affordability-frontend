@@ -259,7 +259,6 @@
       });
     }
     
-
     /*************************************
      * Generate a Unique Filename
      *************************************/
@@ -274,7 +273,7 @@
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
-
+    
     /*************************************
      * Upload PDF to AWS S3 and Return Public URL
      *************************************/
@@ -301,7 +300,7 @@
         });
       });
     }
-
+    
     /*************************************
      * Global Variables and Timer Functions
      *************************************/
@@ -322,7 +321,7 @@
     let finalProcessingInitiated = false;
     let finalDecision = "";
     let finalSubmitted = false;
-
+    
     /*************************************
      * Centered Alert Functions
      *************************************/
@@ -336,7 +335,7 @@
       document.getElementById("alertBox").style.display = "none";
       if (finalSubmitted) { window.location.reload(); }
     }
-
+    
     /*************************************
      * Timer Functions
      *************************************/
@@ -358,14 +357,14 @@
       totalTimeSpentSeconds = Math.floor((new Date() - startTime) / 1000);
       return totalTimeSpentSeconds;
     }
-
+    
     /*************************************
      * Numeric Formatting
      *************************************/
     function formatNumericValue(num) {
       return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
+    
     /*************************************
      * Save Data
      *************************************/
@@ -383,7 +382,7 @@
         checkAllOverrides();
       }
     }
-
+    
     /*************************************
      * Reset Form
      *************************************/
@@ -410,7 +409,7 @@
       processBtn.style.backgroundColor = "red";
       processBtn.innerText = "Process Data";
     }
-
+    
     /*************************************
      * Fetch Lead Data
      *************************************/
@@ -471,7 +470,7 @@
           showAlert("Unable to retrieve data – check Lead ID being entered and if issue persists, speak to a line manager");
         });
     }
-
+    
     /*************************************
      * Create Statement Links
      *************************************/
@@ -504,7 +503,7 @@
         pdfContainer.appendChild(container);
       });
     }
-
+    
     /*************************************
      * Create Load Prior Input Button
      *************************************/
@@ -521,7 +520,7 @@
       loadPriorBtnContainer.appendChild(loadPriorBtn);
       bankStatementsDiv.appendChild(loadPriorBtnContainer);
     }
-
+    
     /*************************************
      * Load Statement Form
      *************************************/
@@ -571,7 +570,7 @@
       }
       checkProcessButton();
     }
-
+    
     /*************************************
      * Load Prior Input Data
      *************************************/
@@ -618,7 +617,7 @@
         showAlert("Prior input data loaded for matching bank accounts.");
       }
     }
-
+    
     /*************************************
      * Check Process Button
      *************************************/
@@ -639,7 +638,7 @@
         finalSubmitBtn.disabled = (!allEntered || selected === "" || (selected === "review" && !commentVal));
       }
     }
-
+    
     /*************************************
      * Override Check Functions
      *************************************/
@@ -698,7 +697,7 @@
         }
       }
     }
-
+    
     /*************************************
      * Render Timer Override Box
      *************************************/
@@ -740,7 +739,7 @@
        `;
       document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => { timerOverrideAcknowledged = e.target.checked; checkAllOverrides(); });
     }
-
+    
     /*************************************
      * Process Data (Final Summary)
      *************************************/
@@ -912,7 +911,7 @@
         ${decisionHTML}
         ${categorisationHTML}`;
     }
-
+    
     /*************************************
      * Decision Option Checks
      *************************************/
@@ -935,7 +934,7 @@
       }
       checkAllOverrides();
     }
-
+    
     /*************************************
      * Build data6 and data7
      *************************************/
@@ -968,7 +967,7 @@
       items.push(Math.round(timeMin));
       return items.join(",");
     }
-
+    
     /*************************************
      * FINAL SUBMIT DECISION with Secure S3 Upload
      * - Uses capturePDFwithJSPDFHTML() for improved PDF capture.
@@ -978,7 +977,7 @@
     function finalSubmitDecision() {
       // Show the Processing Overlay before starting PDF capture.
       document.getElementById("processingOverlay").style.display = "block";
-
+    
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
       for (let opt of decisionOptions) {
@@ -1004,7 +1003,7 @@
         finalDecision = "Revisit - " + comment;
         finalReason = "";
       }
-
+    
       const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
@@ -1027,7 +1026,7 @@
       const gambPctIncome = safeIncome > 0 ? (avgGambling / safeIncome) * 100 : 0;
       const gambPctDisposable = safeDisposable > 0 ? (avgGambling / safeDisposable) * 100 : 0;
       const loanRepayPct = safeDisposable > 0 ? (monthlyRepayment / safeDisposable) * 100 : 0;
-
+    
       let finalSec = stopTimer();
       let finalMin = finalSec / 60;
       let data6 = buildAffordabilityInput();
@@ -1087,7 +1086,7 @@
         debugLog("DEBUG: Error during final submission: " + err.message);
       });
     }
-
+    
     /*************************************
      * Session Check
      *************************************/
@@ -1135,7 +1134,7 @@
         Return to Main Menu
       </button>
       <button id="loginBtn"
-              onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
+              onclick="window.location.href='https://web-production-15e92.up.railway.app/login?redirectTo=' + encodeURIComponent(window.location.href)"
               class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
         Log in with Microsoft 365
       </button>
