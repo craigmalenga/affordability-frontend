@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Belmond &amp; Co - Main Menu</title>
-  
+
   <!-- Favicon snippets -->
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -21,7 +21,7 @@
       padding: 0;
       min-height: 100vh;
       /* Gradient background */
-      background: linear-gradient(to bottom right, #5D2C6D 0%, #2E2F43 20%, #2E2F43 100%);
+      background: linear-gradient(to bottom right, #2E2F43 0%, #2E2F43 85%, #5D2C6D 100%);
     }
     .brand-font {
       font-family: "Brandon Grotesque", sans-serif;
@@ -56,6 +56,7 @@
         console.error("Error updating login button:", error);
       }
     }
+
     window.addEventListener("DOMContentLoaded", () => {
       updateLoginButton();
     });
@@ -77,6 +78,22 @@
         <!-- The text will be updated by updateLoginButton() -->
       </button>
     </div>
+  </div>
+
+  <!-- Large, centered Brandon Grotesque text -->
+  <div 
+    class="flex flex-col justify-center items-center text-white brand-font px-4 text-center"
+    style="height: calc(100vh - 120px);"
+  >
+    <h1 class="text-4xl mb-6">Our daily efforts truly make a difference</h1>
+    <p class="text-2xl mb-4 max-w-2xl">
+      The data we process is more than paperwork—it represents real-life situations with genuine impact
+    </p>
+    <p class="text-2xl mb-4 max-w-2xl">
+      Every piece of information you handle carries the trust of someone relying on our support and
+      helps secure the fair outcome our clients deserve
+    </p>
+    <p class="text-2xl max-w-2xl">Thank you for your commitment</p>
   </div>
 
   <!-- Main content area -->
