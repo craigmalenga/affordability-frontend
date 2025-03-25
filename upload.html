@@ -75,6 +75,29 @@
       }
     }
 
+    async function uploadFilesToS3() {
+      const folderLink = document.getElementById("folderLink").value.trim();
+      if (!folderLink) {
+          alert("Please paste your SharePoint folder link.");
+          return;
+      }
+      logProgress("Uploading files to AWS S3 from folder: " + folderLink);
+      try {
+          const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ folderLink })
+          });
+          const result = await resp.json();
+          if (!resp.ok) throw new Error(result.error || "S3 upload failed.");
+          logProgress("S3 upload result: " + JSON.stringify(result, null, 2));
+      } catch (err) {
+          logProgress("Error uploading files to AWS S3: " + err);
+          alert("Error uploading files. See progress log for details.");
+      }
+  }
+  
     async function checkSession() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
