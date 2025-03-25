@@ -15,18 +15,6 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Example font-face for Brandon Grotesque (adjust if you have a different source) -->
-  <!--
-    <style>
-      @font-face {
-        font-family: 'Brandon Grotesque';
-        src: url('path/to/BrandonGrotesque-Bold.woff2') format('woff2');
-        font-weight: bold;
-        font-style: normal;
-      }
-    </style>
-  -->
-
   <style>
     body {
       margin: 0;
@@ -40,12 +28,10 @@
         #2E2F43 100%
       );
     }
-    /* Utility class for Brandon Grotesque (fallback to sans-serif) */
     .brand-font {
       font-family: "Brandon Grotesque", sans-serif;
       font-weight: bold;
     }
-    /* Fixed logo in bottom-right corner (about 100px wide) */
     .fixed-bottom-right-logo {
       position: fixed;
       bottom: 20px;
@@ -53,26 +39,9 @@
       width: 100px;
       height: auto;
     }
-    /* Example for a hidden "wait" overlay if you have it in your code; we comment it out:
-    #waitOverlay {
-      position: fixed;
-      display: none;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 9999;
-      text-align: center;
-      color: #fff;
-      padding-top: 20%;
-      font-size: 1.5rem;
-    }
-    */
   </style>
 
   <script defer>
-    // If you want to check session status:
     async function checkSession() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", {
@@ -80,13 +49,11 @@
         });
         const data = await resp.json();
         console.log("Session check:", data);
-        // Additional session logic can be placed here
       } catch (error) {
         console.error("Session check failed:", error);
       }
     }
 
-    // Placeholder function: if needed to update FLG data, etc.
     async function updateFLGData() {
       const debugDiv = document.getElementById("debugOutput");
       debugDiv.innerHTML += "<p>Starting FLG data update for fields 6, 7, 9...</p>";
@@ -115,7 +82,6 @@
       }
     }
 
-    // Example button click actions
     function goUpload() {
       updateFLGData();
       window.location.href = "upload.html";
@@ -131,58 +97,29 @@
   </script>
 </head>
 <body>
-  <!-- Top bar with #D12472 background including a login button -->
   <div class="w-full" style="background-color: #D12472;">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <!-- Left side: O-logo and BELMOND text -->
       <div class="flex items-center">
-        <img
-          src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png"
-          alt="O-logo"
-          class="h-8 w-auto mr-4"
-        />
+        <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="h-8 w-auto mr-4" />
         <span class="text-white text-2xl brand-font">BELMOND</span>
       </div>
-      <!-- Right side: White oval login button with pink text -->
-      <button
-        onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
-        class="brand-font bg-white text-[#D12472] px-4 py-2 rounded-full hover:opacity-90"
-        style="font-weight: bold;"
-      >
+      <button onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)" class="brand-font bg-white text-[#D12472] px-4 py-2 rounded-full hover:opacity-90" style="font-weight: bold;">
         Login
       </button>
     </div>
   </div>
-
-  <!-- Main content area -->
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
     <h1 class="text-2xl brand-font mb-4">Affordability Assessment Portal</h1>
     <div class="flex justify-center gap-4">
-      <button
-        onclick="goUpload()"
-        class="brand-font text-white px-6 py-3 rounded-full"
-        style="background-color: #007EB4;"
-      >
+      <button onclick="goUpload()" class="brand-font text-white px-6 py-3 rounded-full" style="background-color: #007EB4;">
         Upload bank statements
       </button>
-      <button
-        onclick="goReview()"
-        class="brand-font text-white px-6 py-3 rounded-full"
-        style="background-color: #90268E;"
-      >
+      <button onclick="goReview()" class="brand-font text-white px-6 py-3 rounded-full" style="background-color: #90268E;">
         Affordability assessment
       </button>
     </div>
   </div>
-
-  <!-- Fixed logo at bottom right -->
-  <img
-    src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png"
-    alt="Fixed O-logo"
-    class="fixed-bottom-right-logo"
-  />
-
-  <!-- Debug area at the bottom -->
+  <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="Fixed O-logo" class="fixed-bottom-right-logo" />
   <div id="debugOutput" class="p-4 text-white text-sm"></div>
 </body>
 </html>

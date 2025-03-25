@@ -124,16 +124,11 @@
     }
   </style>
   <script>
-    /*************************************
-     * Debug Logging Utility
-     *************************************/
+    // Debug logging function
     function debugLog(msg) {
       console.debug(msg);
     }
-
-    /*************************************
-     * Show Processing Modal (Existing Alert Overlay)
-     *************************************/
+    // Processing modal functions
     function showProcessing() {
       const overlay = document.getElementById("alertOverlay");
       const alertBox = document.getElementById("alertBox");
@@ -152,46 +147,7 @@
       alertBox.style.display = "none";
       alertButton.style.display = "block";
     }
-
-    /*************************************
-     * Improved PDF Capture Using html2canvas
-     *************************************/
-    function captureScreenshotPDF() {
-      debugLog("DEBUG: Starting screenshot capture using html2canvas with improved scale.");
-      const content = document.getElementById("pdfContent");
-      return html2canvas(content, {
-        scrollY: -window.scrollY,
-        windowWidth: document.documentElement.scrollWidth,
-        windowHeight: document.documentElement.scrollHeight,
-        useCORS: true,
-        scale: 3
-      }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png', 1.0);
-        debugLog("DEBUG: Screenshot captured, converting to multi-page PDF.");
-        const { jsPDF } = window.jspdf;
-        let pdf = new jsPDF('p', 'pt', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pdfHeight;
-        }
-        debugLog("DEBUG: Multi-page PDF generated successfully.");
-        return pdf.output('blob');
-      });
-    }
-
-    /*************************************
-     * NEW: Improved PDF Capture using jsPDF.html
-     *************************************/
+    // Improved PDF capture using jsPDF.html
     function capturePDFwithJSPDFHTML() {
       debugLog("DEBUG: Starting improved PDF capture (just analysis & categorisations)");
       return new Promise((resolve, reject) => {
@@ -254,10 +210,6 @@
         });
       });
     }
-
-    /*************************************
-     * Generate a Unique Filename
-     *************************************/
     function generateFilename(leadId) {
       const randomNum = Math.floor(100000000 + Math.random() * 900000000);
       const now = new Date();
@@ -269,10 +221,6 @@
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
-
-    /*************************************
-     * Upload PDF to AWS S3 and Return Public URL
-     *************************************/
     function uploadScreenshotSecure(pdfBlob, filename) {
       return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
       .then(resp => resp.json())
@@ -296,10 +244,6 @@
         });
       });
     }
-
-    /*************************************
-     * Global Variables and Timer Functions
-     *************************************/
     let TIMER_CONFIG = {};
     fetch('./timer_config.json')
       .then(resp => resp.json())
@@ -317,10 +261,6 @@
     let finalProcessingInitiated = false;
     let finalDecision = "";
     let finalSubmitted = false;
-
-    /*************************************
-     * Centered Alert Functions
-     *************************************/
     function showAlert(msg) {
       document.getElementById("alertMessage").innerText = msg;
       document.getElementById("alertOverlay").style.display = "block";
@@ -331,10 +271,6 @@
       document.getElementById("alertBox").style.display = "none";
       if (finalSubmitted) { window.location.reload(); }
     }
-
-    /*************************************
-     * Timer Functions
-     *************************************/
     function updateTimerDisplay() {
       if (!startTime) return;
       const diffSec = Math.floor((new Date() - startTime) / 1000);
@@ -353,17 +289,9 @@
       totalTimeSpentSeconds = Math.floor((new Date() - startTime) / 1000);
       return totalTimeSpentSeconds;
     }
-
-    /*************************************
-     * Numeric Formatting
-     *************************************/
     function formatNumericValue(num) {
       return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
-    /*************************************
-     * Save Data
-     *************************************/
     function saveData(statementIndex, rowIndex, monthIndex) {
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
       const inputElem = document.getElementById(inputId);
@@ -378,10 +306,6 @@
         checkAllOverrides();
       }
     }
-
-    /*************************************
-     * Reset Form
-     *************************************/
     function resetForm() {
       document.getElementById("fullName").value = "";
       document.getElementById("bankNames").value = "";
@@ -405,10 +329,6 @@
       processBtn.style.backgroundColor = "red";
       processBtn.innerText = "Process Data";
     }
-
-    /*************************************
-     * Fetch Lead Data
-     *************************************/
     function fetchLeadData() {
       resetForm();
       const leadId = document.getElementById("leadId").value.trim();
@@ -466,10 +386,6 @@
           showAlert("Unable to retrieve data – check Lead ID being entered and if issue persists, speak to a line manager");
         });
     }
-
-    /*************************************
-     * Create Statement Links
-     *************************************/
     function createStatementLinks() {
       const pdfContainer = document.getElementById("bankStatements");
       pdfContainer.innerHTML = "";
@@ -499,10 +415,6 @@
         pdfContainer.appendChild(container);
       });
     }
-
-    /*************************************
-     * Create Load Prior Input Button
-     *************************************/
     function createLoadPriorButton() {
       if (document.getElementById("loadPriorBtn")) return;
       const bankStatementsDiv = document.getElementById("bankStatements");
@@ -516,10 +428,6 @@
       loadPriorBtnContainer.appendChild(loadPriorBtn);
       bankStatementsDiv.appendChild(loadPriorBtnContainer);
     }
-
-    /*************************************
-     * Load Statement Form
-     *************************************/
     function loadStatementForm(statementIndex) {
       const statement = statements[statementIndex];
       const formContainer = document.getElementById("statementForm");
@@ -566,10 +474,6 @@
       }
       checkProcessButton();
     }
-
-    /*************************************
-     * Load Prior Input Data
-     *************************************/
     function loadPriorInputData() {
       if (!priorInputData) {
         showAlert("No prior input data available.");
@@ -613,10 +517,6 @@
         showAlert("Prior input data loaded for matching bank accounts.");
       }
     }
-
-    /*************************************
-     * Check Process Button
-     *************************************/
     function checkProcessButton() {
       const allEntered = statements.every(st => st.entered);
       const processBtn = document.getElementById("processDataBtn");
@@ -634,10 +534,6 @@
         finalSubmitBtn.disabled = (!allEntered || selected === "" || (selected === "review" && !commentVal));
       }
     }
-
-    /*************************************
-     * Override Check Functions
-     *************************************/
     function checkAllOverrides() {
       const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
       const allOk = bankOverridesOk && timerOverrideAcknowledged;
@@ -693,10 +589,6 @@
         }
       }
     }
-
-    /*************************************
-     * Render Timer Override Box
-     *************************************/
     function renderTimerOverrideBox(timePerBank) {
       const container = document.getElementById("errorContainer");
       let timerDiv = document.getElementById("timerOverrideDiv");
@@ -735,10 +627,6 @@
        `;
       document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => { timerOverrideAcknowledged = e.target.checked; checkAllOverrides(); });
     }
-
-    /*************************************
-     * Process Data (Final Summary)
-     *************************************/
     function processFinalData() {
       if (!statements.every(st => st.entered)) return;
       if (!finalProcessingInitiated && document.getElementById("bankWarningsDiv") && document.getElementById("bankWarningsDiv").innerHTML !== "") {
@@ -907,10 +795,6 @@
         ${decisionHTML}
         ${categorisationHTML}`;
     }
-
-    /*************************************
-     * Decision Option Checks
-     *************************************/
     function checkDecisionOptions() {
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
@@ -930,10 +814,6 @@
       }
       checkAllOverrides();
     }
-
-    /*************************************
-     * Build data6 and data7
-     *************************************/
     function buildAffordabilityInput() {
       let arr = [];
       statements.forEach(st => {
@@ -963,10 +843,6 @@
       items.push(Math.round(timeMin));
       return items.join(",");
     }
-
-    /*************************************
-     * FINAL SUBMIT DECISION with Secure S3 Upload
-     *************************************/
     function finalSubmitDecision() {
       document.getElementById("processingOverlay").style.display = "block";
       const decisionOptions = document.getElementsByName("decisionOption");
@@ -1070,11 +946,7 @@
         debugLog("DEBUG: Error during final submission: " + err.message);
       });
     }
-
-    /*************************************
-     * Session Check for RHS
-     *************************************/
-     function checkSession() {
+    function checkSession() {
       fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: 'include' })
         .then(resp => resp.json())
         .then(data => {
@@ -1084,7 +956,6 @@
             fetchDataBtn.disabled = true;
             fetchDataBtn.title = "Please return to the Main Menu to log in.";
           } else {
-            // If logged in, enable the Fetch Data button and remove any warning title.
             fetchDataBtn.disabled = false;
             fetchDataBtn.style.backgroundColor = "blue";
             fetchDataBtn.title = "";
@@ -1092,8 +963,6 @@
         })
         .catch(err => { console.error("Error checking session status:", err); });
     }
-    
-
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
       document.getElementById("timerDisplay").innerText = "Timer: 0:00:00";
@@ -1110,29 +979,22 @@
   
   <!-- Main Content -->
   <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
-    <!-- Top bar with only a "Return to Main Menu" button -->
     <div class="flex justify-between items-center mb-4">
       <button id="returnMenuBtn"
               onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'"
               class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
         Return to Main Menu
       </button>
+      <button id="loginBtn" onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+        Log in with Microsoft 365
+      </button>
     </div>
-
-    <!-- Warning if not logged in -->
-    <div id="notLoggedInWarning">
-      <p><strong>Warning:</strong> You are not logged in. Please return to the <a href="index.html" class="underline text-blue-600">Main Menu</a> to log in before proceeding.</p>
-    </div>
-
-    <!-- Logo and Title -->
     <div class="text-center mb-4">
       <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true"
            alt="Company Logo"
            class="h-16 mx-auto mb-2"/>
       <h1 class="text-2xl font-bold">Affordability Assessment</h1>
     </div>
-
-    <!-- Lead ID input and Fetch Data button -->
     <label for="leadId" class="block mt-4 font-medium">Enter Lead ID:</label>
     <div class="flex gap-2 mt-2">
       <input type="text" id="leadId" placeholder="123456789" class="border p-2 flex-1 rounded-md text-gray-600"/>
@@ -1141,9 +1003,7 @@
         Fetch Data
       </button>
     </div>
-    <!-- Timer display -->
     <div id="timerDisplay" class="mt-4 font-semibold">Timer: 0:00:00</div>
-    <!-- Lead Details -->
     <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
     <label class="block mt-2">Full Name:</label>
     <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
@@ -1151,32 +1011,24 @@
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     <label class="block mt-2">Period that Bank Statements cover:</label>
     <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-    <!-- Hidden bank statement URLs -->
     <div class="hidden">
       <label class="block mt-2">Paths to Relevant Bank Statements:</label>
       <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     </div>
     <label class="block mt-2">Monthly Repayments being Assessed for Affordability:</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-    <!-- Bank Statements Section -->
     <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
     <div id="bankStatements" class="mt-2"></div>
-    <!-- Error Container for Warnings & Timer Override -->
     <div id="errorContainer"></div>
-    <!-- Statement Form for Data Entry and Summary -->
     <div id="statementForm"></div>
-    <!-- Process Data Button -->
     <button id="processDataBtn"
             class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full"
             disabled
             onclick="processFinalData()">
       Process Data
     </button>
-    <!-- Debug Output Area -->
     <div id="debugOutput"></div>
   </div>
-
-  <!-- Processing Overlay -->
   <div id="processingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; text-align:center;">
     <div style="position:relative; top:40%; font-size:1.5rem; font-weight:bold; color:#333;">
       Processing your submission, please wait...

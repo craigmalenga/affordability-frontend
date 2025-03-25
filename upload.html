@@ -50,7 +50,6 @@
       color: red;
       font-weight: bold;
     }
-    /* Simple alert/warning for not logged in */
     #notLoggedInWarning {
       display: none;
       margin-bottom: 1rem;
@@ -73,7 +72,8 @@
       console.log(msg);
     }
 
-    // Check session on page load
+    const validFilenameRegex = /^[^-]+-[^-]+-[A-Za-z]{3}[0-9]{4}-[0-9]+\.pdf$/;
+
     async function checkSession() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -105,22 +105,19 @@
         return;
       }
       const listUrl = "https://web-production-15e92.up.railway.app/list-files?folderLink=" + encodeURIComponent(folderLink);
-      logDebug("Starting file listing process for: " + listUrl);
+      logDebug("Attempting to list files using URL: " + listUrl);
       try {
         const response = await fetch(listUrl, { credentials: "include" });
         if (!response.ok) {
-          const err = await response.json();
-          logDebug("Error from server: " + JSON.stringify(err));
-          throw new Error(JSON.stringify(err));
+          const result = await response.json();
+          throw new Error(result.error || "Unknown error listing files.");
         }
-        const data = await response.json();
-        if (!data.value || !Array.isArray(data.value)) {
-          throw new Error("No files returned from backend.");
-        }
-        renderFileList(data.value);
-        logDebug(`Successfully retrieved ${data.value.length} files.`);
+        const result = await response.json();
+        if (!result.value || !Array.isArray(result.value)) throw new Error("No files returned from backend.");
+        renderFileList(result.value);
+        logDebug(`Successfully retrieved ${result.value.length} files.`);
       } catch (error) {
-        logDebug("Error listing files: " + error);
+        logDebug("Failed to list files: " + error);
         alert("Failed to list files. See debug console for details.");
       }
     }
@@ -129,8 +126,14 @@
       const container = document.getElementById("filesContainer");
       container.innerHTML = "";
       files.forEach(file => {
+        const fileName = file.name || file;
         const div = document.createElement("div");
-        div.textContent = file.name;
+        if (!validFilenameRegex.test(fileName)) {
+          div.innerHTML = `<span>${fileName}</span> <span class="warning">(Invalid Naming Format)</span>`;
+          logDebug(`Warning: File "${fileName}" does not match expected naming convention.`);
+        } else {
+          div.textContent = fileName;
+        }
         div.className = "p-2 bg-gray-100 rounded my-1 text-left";
         container.appendChild(div);
       });
@@ -159,12 +162,10 @@
         if (!resp.ok) {
           throw new Error(result.error || "Unknown upload failure.");
         }
-        // Here is where we parse the step-by-step logs from sharepoint_uploader.py
         logDebug("Upload successful: " + JSON.stringify(result.message));
         if (result.output && result.output.steps) {
           logDebug("----- Detailed Steps from sharepoint_uploader.py -----");
           result.output.steps.forEach((stepObj, idx) => {
-            // For each step, display in debug console
             const detailStr = JSON.stringify(stepObj);
             logDebug(`Step ${idx + 1}: ${detailStr}`);
           });
@@ -188,24 +189,29 @@
   </script>
 </head>
 <body>
-  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
-    <!-- If not logged in, show a warning to return to main menu -->
-    <div id="notLoggedInWarning">
-      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please return to the
-        <a href="index.html" class="underline text-blue-600">Main Menu</a> to log in.
-      </p>
+  <!-- Top bar with login button -->
+  <div class="w-full" style="background-color: #D12472;">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center">
+        <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="h-8 w-auto mr-4" />
+        <span class="text-white text-2xl brand-font">BELMOND</span>
+      </div>
+      <button onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)" class="brand-font bg-white text-[#D12472] px-4 py-2 rounded-full hover:opacity-90" style="font-weight: bold;">
+        Login
+      </button>
     </div>
+  </div>
 
-    <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true"
-         alt="Company Logo"
-         class="h-16 mx-auto mb-4" />
+  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
+    <div id="notLoggedInWarning">
+      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please return to the <a href="index.html" class="underline text-blue-600">Main Menu</a> to log in.</p>
+    </div>
+    <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true" alt="Company Logo" class="h-16 mx-auto mb-4" />
     <h1 class="text-2xl font-bold mb-4">SharePoint to AWS Uploader</h1>
-
     <div class="mb-4">
       <label for="folderLink" class="block font-medium mb-2">Paste SharePoint Folder Link:</label>
       <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
     </div>
-
     <div class="flex flex-col gap-4 items-center">
       <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
         List Files (SharePoint)
@@ -218,16 +224,12 @@
         Save Debug Log
       </button>
     </div>
-
     <h2 class="text-lg font-semibold mt-8">Debug Console</h2>
     <div id="debugConsole" class="mt-2"></div>
-
     <p class="text-sm text-gray-600 mt-4">
       Note: If not logged in, these actions will be disabled.
     </p>
   </div>
-
-  <!-- Processing overlay -->
   <div id="processingOverlay">
     <div>Processing... Please wait...</div>
   </div>
