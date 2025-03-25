@@ -26,6 +26,7 @@
       margin-top: 1rem;
       border: 1px solid;
     }
+    
     #progressLog {
       background: #e0f7fa;
       color: #006064;
@@ -74,6 +75,29 @@
         console.error("Error updating login button:", error);
       }
     }
+    async function uploadFilesToS3LHS() {
+      const folderLink = document.getElementById("folderLink").value.trim();
+      if (!folderLink) {
+        alert("Please paste your SharePoint folder link.");
+        return;
+      }
+      logProgress("Uploading files to LHS AWS S3 from folder: " + folderLink);
+      try {
+          const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3-lhs", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ folderLink })
+          });
+          const result = await resp.json();
+          if (!resp.ok) throw new Error(result.error || "LHS S3 upload failed.");
+          logProgress("LHS S3 upload result: " + JSON.stringify(result, null, 2));
+      } catch (err) {
+          logProgress("Error uploading files to LHS AWS S3: " + err);
+          alert("Error uploading files. See progress log for details.");
+      }
+    }
+    
 
     async function uploadFilesToS3() {
       const folderLink = document.getElementById("folderLink").value.trim();
@@ -96,6 +120,14 @@
           logProgress("Error uploading files to AWS S3: " + err);
           alert("Error uploading files. See progress log for details.");
       }
+
+      function logProgress(msg) {
+        console.log(msg);
+        const progDiv = document.getElementById("progressLog");
+        progDiv.innerText += msg + "\n";
+      }
+      
+
   }
   
     async function checkSession() {
@@ -376,14 +408,15 @@
         List Files (SharePoint)
       </button>
       <div id="filesContainer" class="mt-2 w-full"></div>
-      <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-        Upload Files to AWS S3
+      
+      <button id="filesBtnLHS" onclick="uploadFilesToS3LHS()" class="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700">
+        Upload Files to AWS S3 (LHS)
       </button>
+
       <button id="flgUpdateBtn" onclick="uploadFLGData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
         Upload data to FLG
       </button>
     </div>
-
     
     <!-- Container for progress log -->
     <div id="progressLog"></div>
