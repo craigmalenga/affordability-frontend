@@ -12,7 +12,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- html2canvas -->
+  <!-- html2canvas (kept for line-count) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- jsPDF library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -57,10 +57,8 @@
     #alertOverlay {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0,0,0,0.4);
       z-index: 999;
     }
@@ -68,8 +66,7 @@
       display: none;
       position: fixed;
       width: 300px;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       background: #fff;
       border: 2px solid #aaa;
@@ -115,57 +112,22 @@
   </style>
   <script>
     /*************************************
-     * Unified Login Button & Session Check for RHS
-     *************************************/
-    async function updateLoginButton() {
-      try {
-        const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
-        const data = await resp.json();
-        const loginBtn = document.getElementById("loginBtn");
-        // Always keep the login button enabled.
-        if (data.logged_in) {
-          loginBtn.innerText = "Logged in";
-          loginBtn.classList.remove("bg-red-600");
-          loginBtn.classList.add("bg-green-600");
-        } else {
-          loginBtn.innerText = "Log in with Microsoft 365";
-          loginBtn.classList.remove("bg-green-600");
-          loginBtn.classList.add("bg-red-600");
-        }
-      } catch (error) {
-        console.error("Error updating login button:", error);
-      }
-    }
-    function checkSession() {
-      fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: 'include' })
-        .then(resp => resp.json())
-        .then(data => {
-          const fetchDataBtn = document.getElementById("fetchDataBtn");
-          if (!data.logged_in) {
-            fetchDataBtn.disabled = true;
-            fetchDataBtn.style.backgroundColor = "red";
-          } else {
-            fetchDataBtn.disabled = false;
-            fetchDataBtn.style.backgroundColor = "blue";
-          }
-          updateLoginButton();
-        })
-        .catch(err => { console.error("Error checking session status:", err); });
-    }
-    /*************************************
-     * (Below here, all other functions remain unchanged from your old RHS code)
-     * Debug Logging, Processing Modal, PDF capture, timer, saving data, fetching FLG data, submission, etc.
+     * Debug Logging Utility
      *************************************/
     function debugLog(msg) {
       console.debug(msg);
     }
+
+    /*************************************
+     * Show Processing Modal (Existing Alert Overlay)
+     *************************************/
     function showProcessing() {
       const overlay = document.getElementById("alertOverlay");
       const alertBox = document.getElementById("alertBox");
       const alertMessage = document.getElementById("alertMessage");
       const alertButton = document.getElementById("alertButton");
       alertMessage.innerText = "Processing... Please wait.";
-      alertButton.style.display = "none";
+      alertButton.style.display = "none";  // Hide the OK button during processing
       overlay.style.display = "block";
       alertBox.style.display = "block";
     }
@@ -175,8 +137,12 @@
       const alertButton = document.getElementById("alertButton");
       overlay.style.display = "none";
       alertBox.style.display = "none";
-      alertButton.style.display = "block";
+      alertButton.style.display = "block";  // Restore OK button
     }
+
+    /*************************************
+     * PDF Capture Functions
+     *************************************/
     function captureScreenshotPDF() {
       debugLog("DEBUG: Starting screenshot capture using html2canvas with improved scale.");
       const content = document.getElementById("pdfContent");
@@ -214,22 +180,26 @@
       return new Promise((resolve, reject) => {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'pt', 'a4');
+        // 1. Locate the analysis section (assumed to be the parent container of .decision-box)
         const analysisSection = document.querySelector(".decision-box")?.parentElement;
         if (!analysisSection) {
           return reject(new Error("Analysis section not found."));
         }
+        // 2. Create a dedicated container for the PDF content
         const pdfContainer = document.createElement("div");
-        pdfContainer.style.width = "800px";
+        pdfContainer.style.width = "800px"; // fixed width to control scaling
         pdfContainer.style.fontFamily = "sans-serif";
         pdfContainer.style.color = "#000";
         pdfContainer.style.backgroundColor = "#fff";
         pdfContainer.style.padding = "20px";
+        // 3. Append a style element to ensure all table cells are vertically centered
         const styleElem = document.createElement("style");
         styleElem.innerHTML = `
           table { border-collapse: collapse; }
           td, th { vertical-align: middle !important; }
         `;
         pdfContainer.appendChild(styleElem);
+        // 4. Add the Belmond logo using a background image (alternative approach)
         const logoContainer = document.createElement("div");
         logoContainer.style.width = "150px";
         logoContainer.style.height = "auto";
@@ -239,6 +209,7 @@
         logoContainer.style.backgroundRepeat = "no-repeat";
         logoContainer.style.backgroundPosition = "center";
         pdfContainer.appendChild(logoContainer);
+        // 5. Create the heading with the text "Affordability Assessment - " then [Name] and Lead ID
         const fullName = document.getElementById("fullName").value.trim();
         const leadId = document.getElementById("leadId").value.trim();
         const heading = document.createElement("h2");
@@ -247,13 +218,16 @@
         heading.style.fontWeight = "bold";
         heading.style.marginBottom = "16px";
         pdfContainer.appendChild(heading);
+        // 6. Clone the analysis section and remove any unwanted elements (e.g., finalSubmit button)
         const clonedSection = analysisSection.cloneNode(true);
         const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
         if (processDecision) processDecision.remove();
         pdfContainer.appendChild(clonedSection);
+        // 7. Prevent generating a PDF if content is blank
         if (!pdfContainer.innerText.trim()) {
           return reject(new Error("PDF content is blank."));
         }
+        // 8. Render the container into the PDF using jsPDF.html
         pdf.html(pdfContainer, {
           callback: function (pdf) {
             debugLog("DEBUG: PDF generated successfully.");
@@ -271,6 +245,9 @@
         });
       });
     }
+    /*************************************
+     * Generate a Unique Filename
+     *************************************/
     function generateFilename(leadId) {
       const randomNum = Math.floor(100000000 + Math.random() * 900000000);
       const now = new Date();
@@ -282,13 +259,16 @@
       debugLog("DEBUG: Generated filename: " + filename);
       return filename;
     }
+    /*************************************
+     * Upload PDF to AWS S3 and Return Permanent Public URL
+     *************************************/
     function uploadScreenshotSecure(pdfBlob, filename) {
       return fetch(`https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`, { credentials: "include" })
       .then(resp => resp.json())
       .then(data => {
         if (data.error) { throw new Error(data.error); }
         const presignedUrl = data.presigned_url;
-        const publicUrl = data.public_url;
+        const publicUrl = data.public_url;  // This URL is permanent
         debugLog("DEBUG: Obtained presigned URL: " + presignedUrl);
         return fetch(presignedUrl, {
           method: "PUT",
@@ -296,7 +276,7 @@
           body: pdfBlob
         }).then(uploadResp => {
           if (uploadResp.ok) {
-            debugLog("DEBUG: S3 upload succeeded.");
+            debugLog("DEBUG: S3 upload succeeded. Permanent URL: " + publicUrl);
             return publicUrl;
           } else {
             debugLog("DEBUG: S3 upload failed with status " + uploadResp.status);
@@ -305,6 +285,9 @@
         });
       });
     }
+    /*************************************
+     * Global Variables and Timer Functions
+     *************************************/
     let TIMER_CONFIG = {};
     fetch('./timer_config.json')
       .then(resp => resp.json())
@@ -322,6 +305,9 @@
     let finalProcessingInitiated = false;
     let finalDecision = "";
     let finalSubmitted = false;
+    /*************************************
+     * Centered Alert Functions
+     *************************************/
     function showAlert(msg) {
       document.getElementById("alertMessage").innerText = msg;
       document.getElementById("alertOverlay").style.display = "block";
@@ -332,6 +318,9 @@
       document.getElementById("alertBox").style.display = "none";
       if (finalSubmitted) { window.location.reload(); }
     }
+    /*************************************
+     * Timer Functions
+     *************************************/
     function updateTimerDisplay() {
       if (!startTime) return;
       const diffSec = Math.floor((new Date() - startTime) / 1000);
@@ -350,9 +339,15 @@
       totalTimeSpentSeconds = Math.floor((new Date() - startTime) / 1000);
       return totalTimeSpentSeconds;
     }
+    /*************************************
+     * Numeric Formatting
+     *************************************/
     function formatNumericValue(num) {
       return num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+    /*************************************
+     * Save Data
+     *************************************/
     function saveData(statementIndex, rowIndex, monthIndex) {
       const inputId = `${statementIndex}_${rowIndex}_${monthIndex}`;
       const inputElem = document.getElementById(inputId);
@@ -367,6 +362,9 @@
         checkAllOverrides();
       }
     }
+    /*************************************
+     * Reset Form
+     *************************************/
     function resetForm() {
       document.getElementById("fullName").value = "";
       document.getElementById("bankNames").value = "";
@@ -390,6 +388,9 @@
       processBtn.style.backgroundColor = "red";
       processBtn.innerText = "Process Data";
     }
+    /*************************************
+     * Fetch Lead Data
+     *************************************/
     function fetchLeadData() {
       resetForm();
       const leadId = document.getElementById("leadId").value.trim();
@@ -447,6 +448,9 @@
           showAlert("Unable to retrieve data – check Lead ID being entered and if issue persists, speak to a line manager");
         });
     }
+    /*************************************
+     * Create Statement Links
+     *************************************/
     function createStatementLinks() {
       const pdfContainer = document.getElementById("bankStatements");
       pdfContainer.innerHTML = "";
@@ -476,6 +480,9 @@
         pdfContainer.appendChild(container);
       });
     }
+    /*************************************
+     * Create Load Prior Input Button
+     *************************************/
     function createLoadPriorButton() {
       if (document.getElementById("loadPriorBtn")) return;
       const bankStatementsDiv = document.getElementById("bankStatements");
@@ -489,6 +496,9 @@
       loadPriorBtnContainer.appendChild(loadPriorBtn);
       bankStatementsDiv.appendChild(loadPriorBtnContainer);
     }
+    /*************************************
+     * Load Statement Form
+     *************************************/
     function loadStatementForm(statementIndex) {
       const statement = statements[statementIndex];
       const formContainer = document.getElementById("statementForm");
@@ -535,6 +545,9 @@
       }
       checkProcessButton();
     }
+    /*************************************
+     * Load Prior Input Data
+     *************************************/
     function loadPriorInputData() {
       if (!priorInputData) {
         showAlert("No prior input data available.");
@@ -578,6 +591,9 @@
         showAlert("Prior input data loaded for matching bank accounts.");
       }
     }
+    /*************************************
+     * Check Process Button
+     *************************************/
     function checkProcessButton() {
       const allEntered = statements.every(st => st.entered);
       const processBtn = document.getElementById("processDataBtn");
@@ -595,6 +611,9 @@
         finalSubmitBtn.disabled = (!allEntered || selected === "" || (selected === "review" && !commentVal));
       }
     }
+    /*************************************
+     * Override Check Functions
+     *************************************/
     function checkAllOverrides() {
       const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
       const allOk = bankOverridesOk && timerOverrideAcknowledged;
@@ -650,6 +669,9 @@
         }
       }
     }
+    /*************************************
+     * Render Timer Override Box
+     *************************************/
     function renderTimerOverrideBox(timePerBank) {
       const container = document.getElementById("errorContainer");
       let timerDiv = document.getElementById("timerOverrideDiv");
@@ -688,6 +710,9 @@
        `;
       document.getElementById("timerOverrideCheckbox").addEventListener("change", (e) => { timerOverrideAcknowledged = e.target.checked; checkAllOverrides(); });
     }
+    /*************************************
+     * Process Data (Final Summary)
+     *************************************/
     function processFinalData() {
       if (!statements.every(st => st.entered)) return;
       if (!finalProcessingInitiated && document.getElementById("bankWarningsDiv") && document.getElementById("bankWarningsDiv").innerHTML !== "") {
@@ -856,6 +881,9 @@
         ${decisionHTML}
         ${categorisationHTML}`;
     }
+    /*************************************
+     * Decision Option Checks
+     *************************************/
     function checkDecisionOptions() {
       const decisionOptions = document.getElementsByName("decisionOption");
       let selected = "";
@@ -875,6 +903,9 @@
       }
       checkAllOverrides();
     }
+    /*************************************
+     * Build data6 and data7
+     *************************************/
     function buildAffordabilityInput() {
       let arr = [];
       statements.forEach(st => {
@@ -904,6 +935,12 @@
       items.push(Math.round(timeMin));
       return items.join(",");
     }
+    /*************************************
+     * FINAL SUBMIT DECISION with Secure S3 Upload
+     * - Uses capturePDFwithJSPDFHTML() for improved PDF capture.
+     * - Shows a “Processing...” overlay before starting.
+     * - Hides the overlay after submission (or if an error occurs).
+     *************************************/
     function finalSubmitDecision() {
       document.getElementById("processingOverlay").style.display = "block";
       const decisionOptions = document.getElementsByName("decisionOption");
@@ -990,7 +1027,7 @@
       })
       .then(respData => {
         document.getElementById("processingOverlay").style.display = "none";
-        debugLog("DEBUG: FLG update response data: " + JSON.stringify(respData));
+        debugLog("DEBUG: FLG update response data:", respData);
         if (respData.error) {
           showAlert("Error updating FLG with screenshot: " + respData.error);
           debugLog("DEBUG: FLG update with screenshot error: " + respData.error);
@@ -1007,6 +1044,9 @@
         debugLog("DEBUG: Error during final submission: " + err.message);
       });
     }
+    /*************************************
+     * Session Check
+     *************************************/
     function checkSession() {
       fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: 'include' })
         .then(resp => resp.json())
@@ -1106,7 +1146,8 @@
     <!-- Debug Output Area -->
     <div id="debugOutput"></div>
   </div>
-  <!-- Processing Overlay (retained but can be hidden by default) -->
+
+  <!-- Processing Overlay (added outside #pdfContent) -->
   <div id="processingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; text-align:center;">
     <div style="position:relative; top:40%; font-size:1.5rem; font-weight:bold; color:#333;">
       Processing your submission, please wait...
