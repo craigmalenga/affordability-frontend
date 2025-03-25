@@ -47,6 +47,7 @@
     }
   </style>
   <script defer>
+    // Check session status and update login button.
     async function updateLoginButton() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -99,7 +100,7 @@
       checkSession();
     });
 
-    // For "List Files" button (optional)
+    // "List Files" button functionality
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -137,52 +138,65 @@
       }
     }
 
-    // Generate a random 9-digit number as a string.
+    // Generate a random 9-digit number as a zero-padded string.
     function generateRandom9Digit() {
-      return Math.floor(100000000 + Math.random() * 900000000).toString();
+      const num = Math.floor(1 + Math.random() * 999999999); // from 1 to 999999999
+      return String(num).padStart(9, "0");
     }
 
+    // Base URL for S3 – adjust if needed.
+    const S3_BASE_URL = "https://affordability-statememts.s3.eu-north-1.amazonaws.com/";
+
     // Process filenames and aggregate FLG data fields per unique Lead ID.
-    // Assumes filenames are in the format:
-    // leadId-bankName-startDate-account-<random9digits>.pdf
+    // Expected filename format from SharePoint: <LeadID>-<Bank>-<AccountNumber>.pdf
+    // For S3 upload, we add a random 9-digit number:
+    // <LeadID>-<Bank>-<AccountNumber>-<random9digits>.pdf
+    // This final URL becomes the data8 field.
     function aggregateFLGData(files) {
       const groups = {};
+
       files.forEach(file => {
-        // Remove the .pdf extension if present.
+        // Remove ".pdf" extension (case-insensitive)
         let filename = file.name;
         if (filename.toLowerCase().endsWith(".pdf")) {
           filename = filename.slice(0, -4);
         }
         const parts = filename.split("-");
-        if (parts.length < 5) {
+        if (parts.length < 3) {
           logProgress("Filename format invalid: " + file.name);
           return;
         }
         const leadId = parts[0];
         const bankName = parts[1];
-        const startDate = parts[2];
-        const account = parts[3];
-        // Ignore parts[4] (random segment).
+        const accountNumber = parts[2];
+
+        // Generate the random 9-digit string.
+        const randomDigits = generateRandom9Digit();
+        // Build final S3 filename.
+        const finalS3Filename = `${leadId}-${bankName}-${accountNumber}-${randomDigits}.pdf`;
+        // Build the final S3 URL.
+        const finalS3Url = `${S3_BASE_URL}${finalS3Filename}`;
+
+        // Initialize group for this leadId.
         if (!groups[leadId]) {
           groups[leadId] = {
-            data12: startDate, // fixed per Lead ID.
-            data16: [], // will hold bankName-account entries.
-            data8: []   // will hold generated URLs.
+            data8: [],   // Will hold S3 URLs.
+            data12: [],  // For example, we store the bank name.
+            data16: []   // For example, we store the account number.
           };
         }
-        groups[leadId].data16.push(`${bankName}-${account}`);
-        // For data8, generate a URL (simulate with new random 9-digit number).
-        const randomNum = generateRandom9Digit();
-        groups[leadId].data8.push(`https://flg.example.com/${randomNum}`);
+        groups[leadId].data8.push(finalS3Url);
+        groups[leadId].data12.push(bankName);
+        groups[leadId].data16.push(accountNumber);
       });
 
-      // Build aggregated data fields.
+      // Build aggregated data for each lead.
       const aggregated = [];
       for (const leadId in groups) {
         aggregated.push({
           leadId: leadId,
           data8: groups[leadId].data8.join(","),
-          data12: groups[leadId].data12,
+          data12: groups[leadId].data12.join(","),
           data16: groups[leadId].data16.join(",")
         });
       }
@@ -194,15 +208,15 @@
         const div = document.createElement("div");
         div.className = "p-2 bg-gray-200 rounded my-1 text-left";
         div.innerHTML = `<strong>Lead ID:</strong> ${item.leadId} <br/>
-                         <strong>data8 (URLs):</strong> ${item.data8} <br/>
-                         <strong>data12 (Start Date):</strong> ${item.data12} <br/>
-                         <strong>data16 (Bank Info):</strong> ${item.data16}`;
+                         <strong>data8 (S3 URLs):</strong> ${item.data8} <br/>
+                         <strong>data12 (Bank Name(s)):</strong> ${item.data12} <br/>
+                         <strong>data16 (Account Number(s)):</strong> ${item.data16}`;
         extractedContainer.appendChild(div);
       });
       logProgress("Aggregated FLG data generated for " + aggregated.length + " unique Lead IDs.");
     }
 
-    // The following functions remain unchanged.
+    // Extraction of FLG data (triggered by the "Extract FLG Data" button)
     async function extractFLGData() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -227,6 +241,7 @@
       }
     }
 
+    // Upload FLG fields to the FLG API.
     async function uploadFLGFields() {
       const leadId = document.getElementById("leadId").value.trim();
       const data8 = document.getElementById("data8").value.trim();
@@ -254,6 +269,7 @@
       }
     }
 
+    // Upload files to AWS S3.
     async function uploadFilesToS3() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
