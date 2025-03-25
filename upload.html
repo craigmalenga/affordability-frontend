@@ -2,305 +2,397 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Affordability Assessment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SharePoint → AWS Uploader</title>
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="shortcut icon" href="/favicon.ico" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body {
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
+      /* Blue to pink gradient background */
+      background: linear-gradient(to bottom right, #2E2F43 0%, #2E2F43 85%, #5D2C6D 100%);
       background-size: cover;
     }
-
-    #errorContainer, #bankWarningsDiv, #timerOverrideDiv {
-      width: 100%;
-    }
-
-    .warning-box, .time-box, .decision-box {
-      width: 100%;
-      margin-top: 1rem;
+    #progressLog, #failedLeads {
+      white-space: pre-line;
       padding: 1rem;
       border-radius: 0.5rem;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      border: 1px solid;
     }
-
-    .warning-box {
-      border: 1px solid #f87171;
+    #progressLog {
+      background: #e0f7fa;
+      color: #006064;
+      border-color: #4dd0e1;
+    }
+    #failedLeads {
+      background: #ffebee;
+      color: #b71c1c;
+      border-color: #f44336;
+    }
+    #notLoggedInWarning {
+      display: none;
+      margin-bottom: 1rem;
+      padding: 1rem;
       background-color: #fef2f2;
       color: #b91c1c;
-    }
-
-    .time-box {
-      border: 1px solid #facc15;
-      background-color: #fefce8;
-      color: #b45309;
-    }
-
-    .decision-box {
-      border: 1px solid #3b82f6;
-      background-color: #dbeafe;
-      color: #1e3a8a;
-    }
-
-    #alertOverlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.4);
-      z-index: 999;
-    }
-
-    #alertBox {
-      display: none;
-      position: fixed;
-      width: 300px;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border: 2px solid #aaa;
-      border-radius: 8px;
-      padding: 20px;
-      z-index: 1000;
-      text-align: center;
-    }
-
-    #alertMessage {
-      margin-bottom: 1rem;
-    }
-
-    #alertButton {
-      background: #3490dc;
-      color: #fff;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    #alertButton:hover {
-      background: #2779bd;
-    }
-
-    .summary-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
-    }
-
-    .summary-table th, .summary-table td {
-      border: 1px solid #ccc;
-      padding: 8px;
-    }
-
-    .summary-table th {
-      background-color: #f9f9f9;
+      border: 1px solid #f87171;
+      border-radius: 0.5rem;
       text-align: left;
     }
-
-    #debugOutput {
-      margin-top: 1rem;
-      padding: 8px;
-      background-color: #fff;
-      border: 1px solid #a0aec0;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 0.85rem;
-      max-height: 200px;
-      overflow-y: auto;
+    .fixed-bottom-right-logo {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 100px;
+      height: auto;
     }
   </style>
-  <script>
-    function debugLog(msg) {
-      console.debug(msg);
-    }
-
-    function showProcessing() {
-      const overlay = document.getElementById("alertOverlay");
-      const alertBox = document.getElementById("alertBox");
-      const alertMessage = document.getElementById("alertMessage");
-      const alertButton = document.getElementById("alertButton");
-
-      alertMessage.innerText = "Processing... Please wait.";
-      alertButton.style.display = "none"; // Hide the OK button during processing
-      overlay.style.display = "block";
-      alertBox.style.display = "block";
-    }
-
-    function hideProcessing() {
-      const overlay = document.getElementById("alertOverlay");
-      const alertBox = document.getElementById("alertBox");
-      const alertButton = document.getElementById("alertButton");
-
-      overlay.style.display = "none";
-      alertBox.style.display = "none";
-      alertButton.style.display = "block"; // Restore OK button
-    }
-
-    function captureScreenshotPDF() {
-      debugLog("DEBUG: Starting screenshot capture using html2canvas with improved scale.");
-      const content = document.getElementById("pdfContent");
-
-      return html2canvas(content, {
-        scrollY: -window.scrollY,
-        windowWidth: document.documentElement.scrollWidth,
-        windowHeight: document.documentElement.scrollHeight,
-        useCORS: true,
-        scale: 3
-      }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png', 1.0);
-        debugLog("DEBUG: Screenshot captured, converting to multi-page PDF.");
-        const { jsPDF } = window.jspdf;
-
-        let pdf = new jsPDF('p', 'pt', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 0;
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pdfHeight;
+  <script defer>
+    // Check session status and update login button.
+    async function updateLoginButton() {
+      try {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
+        const data = await resp.json();
+        const loginBtn = document.getElementById("loginBtn");
+        if (data.logged_in) {
+          loginBtn.innerText = "Logged in";
+          loginBtn.classList.remove("bg-red-600");
+          loginBtn.classList.add("bg-green-600");
+        } else {
+          loginBtn.innerText = "Log in with Microsoft 365";
+          loginBtn.classList.remove("bg-green-600");
+          loginBtn.classList.add("bg-red-600");
         }
+      } catch (error) {
+        console.error("Error updating login button:", error);
+      }
+    }
 
-        debugLog("DEBUG: Multi-page PDF generated successfully.");
-        return pdf.output('blob');
+    async function uploadFilesToS3() {
+      const folderLink = document.getElementById("folderLink").value.trim();
+      if (!folderLink) {
+          alert("Please paste your SharePoint folder link.");
+          return;
+      }
+      logProgress("Uploading files to AWS S3 from folder: " + folderLink);
+      try {
+          const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ folderLink })
+          });
+          const result = await resp.json();
+          if (!resp.ok) throw new Error(result.error || "S3 upload failed.");
+          logProgress("S3 upload result: " + JSON.stringify(result, null, 2));
+      } catch (err) {
+          logProgress("Error uploading files to AWS S3: " + err);
+          alert("Error uploading files. See progress log for details.");
+      }
+  }
+  
+    async function checkSession() {
+      try {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
+        const data = await resp.json();
+        if (!data.logged_in) {
+          document.getElementById("notLoggedInWarning").style.display = "block";
+          document.getElementById("listFilesBtn").disabled = true;
+          document.getElementById("filesBtn").disabled = true;
+          document.getElementById("flgUpdateBtn").disabled = true;
+        } else {
+          document.getElementById("notLoggedInWarning").style.display = "none";
+          document.getElementById("listFilesBtn").disabled = false;
+          document.getElementById("filesBtn").disabled = false;
+          document.getElementById("flgUpdateBtn").disabled = false;
+        }
+        updateLoginButton();
+      } catch (err) {
+        console.error("Error checking session:", err);
+      }
+    }
+
+    function logProgress(msg) {
+      console.log(msg);
+      const progDiv = document.getElementById("progressLog");
+      progDiv.innerText += msg + "\n";
+    }
+
+    function logFailed(msg) {
+      console.error(msg);
+      const failedDiv = document.getElementById("failedLeads");
+      failedDiv.innerText += msg + "\n";
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      checkSession();
+    });
+
+    // "List Files" button functionality
+    async function handleListFiles() {
+      const folderLink = document.getElementById("folderLink").value.trim();
+      if (!folderLink) {
+        alert("Please paste your SharePoint folder link.");
+        return;
+      }
+      logProgress("Listing files from: " + folderLink);
+      const listUrl = "https://web-production-15e92.up.railway.app/list-files?folderLink=" + encodeURIComponent(folderLink);
+      try {
+        const response = await fetch(listUrl, { credentials: "include" });
+        if (!response.ok) {
+          const err = await response.json();
+          logProgress("Error: " + JSON.stringify(err));
+          throw new Error("File listing failed.");
+        }
+        const data = await response.json();
+        if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
+
+        // Display raw file names
+        renderFileList(data.value);
+        logProgress(`Found ${data.value.length} file(s).`);
+
+        // Process filenames to generate aggregated FLG data fields per unique Lead ID.
+        const aggregated = aggregateFLGData(data.value);
+        // Store aggregated data in a global variable for FLG update.
+        window.aggregatedData = aggregated;
+      } catch (error) {
+        logProgress("Error listing files: " + error);
+        alert("Error listing files. See progress log for details.");
+      }
+    }
+
+    function renderFileList(files) {
+      const container = document.getElementById("filesContainer");
+      container.innerHTML = "";
+      files.forEach(file => {
+        const div = document.createElement("div");
+        div.className = "p-2 bg-gray-100 rounded my-1 text-left";
+        div.innerText = file.name;
+        container.appendChild(div);
       });
     }
 
-    function generateFilename(leadId) {
-      const randomNum = Math.floor(100000000 + Math.random() * 900000000);
-      const now = new Date();
-      const day = now.getDate().toString().padStart(2, '0');
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const month = monthNames[now.getMonth()];
-      const year = now.getFullYear().toString().substr(-2);
-
-      const filename = `affordability_decision_screenshot-${leadId}-${randomNum}-${day}${month}${year}.pdf`;
-      debugLog("DEBUG: Generated filename: " + filename);
-      return filename;
+    // Generate a random 9-digit number as a zero-padded string.
+    function generateRandom9Digit() {
+      const num = Math.floor(1 + Math.random() * 999999999); // from 1 to 999999999
+      return String(num).padStart(9, "0");
     }
 
-    function uploadScreenshotSecure(pdfBlob, filename) {
-      return fetch(
-        `https://web-production-15e92.up.railway.app/api/generate_presigned_url?filename=${encodeURIComponent(filename)}`,
-        { credentials: "include" }
-      )
-      .then(resp => resp.json())
-      .then(data => {
-        if (data.error) {
-          throw new Error(data.error);
+    // Base URL for S3 – adjust if needed.
+    const S3_BASE_URL = "https://affordability-statememts.s3.eu-north-1.amazonaws.com/";
+
+    // Process filenames and aggregate FLG data fields per unique Lead ID.
+    // Expected filename format: <LeadID>-<Bank>-<Account>-<Date>.pdf
+    // For S3 upload, we add a random 9-digit number:
+    // <LeadID>-<Bank>-<Account>-<Date>-<random9digits>.pdf
+    // data12: the Date (MmmYYYY) must be identical for all files of a LeadID;
+    // data16: comma-separated <Bank>-<Account> pairs.
+    function aggregateFLGData(files) {
+      const groups = {};  // valid files grouped by LeadID
+      const failed = [];  // array of error messages
+
+      files.forEach(file => {
+        let originalFilename = file.name;
+        // Remove ".pdf" extension (case-insensitive)
+        let filename = originalFilename;
+        if (filename.toLowerCase().endsWith(".pdf")) {
+          filename = filename.slice(0, -4);
         }
-        const presignedUrl = data.presigned_url;
-        const publicUrl = data.public_url;
+        const parts = filename.split("-");
+        if (parts.length !== 4) {
+          failed.push(`File "${originalFilename}" not named according to format (expected 4 parts).`);
+          return;
+        }
+        const leadId = parts[0];
+        const bankName = parts[1];
+        const accountNumber = parts[2];
+        const datePart = parts[3];  // expected in MmmYYYY format
 
-        debugLog("DEBUG: Obtained presigned URL: " + presignedUrl);
+        // Validate datePart with a regex (3 letters followed by 4 digits)
+        if (!/^[A-Za-z]{3}\d{4}$/.test(datePart)) {
+          failed.push(`File "${originalFilename}" has invalid date part "${datePart}" (expected format MmmYYYY).`);
+          return;
+        }
 
-        return fetch(presignedUrl, {
-          method: "PUT",
-          headers: { "Content-Type": "application/pdf" },
-          body: pdfBlob
-        }).then(uploadResp => {
-          if (uploadResp.ok) {
-            debugLog("DEBUG: S3 upload succeeded. Permanent URL: " + publicUrl);
-            return publicUrl;
-          } else {
-            debugLog("DEBUG: S3 upload failed with status " + uploadResp.status);
-            throw new Error("S3 Upload failed");
+        // Build final S3 filename (append a random 9-digit number)
+        const randomDigits = generateRandom9Digit();
+        const finalS3Filename = `${leadId}-${bankName}-${accountNumber}-${datePart}-${randomDigits}.pdf`;
+        const finalS3Url = `${S3_BASE_URL}${finalS3Filename}`;
+
+        // Initialize group for this leadId if not already created.
+        if (!groups[leadId]) {
+          groups[leadId] = {
+            data8: [],    // Will hold S3 URLs.
+            data12: datePart,  // Expected date for this lead.
+            data16: []    // Will hold bank-account pairs.
+          };
+        } else {
+          // If the datePart for another file in the same lead differs, flag an error.
+          if (groups[leadId].data12 !== datePart) {
+            failed.push(`Inconsistent date for LeadID "${leadId}": "${groups[leadId].data12}" vs. "${datePart}".`);
+            // Remove group to prevent partial update.
+            delete groups[leadId];
+            return;
           }
-        });
+        }
+        groups[leadId].data8.push(finalS3Url);
+        groups[leadId].data16.push(`${bankName}-${accountNumber}`);
       });
+
+      // Build aggregated data array.
+      const aggregated = [];
+      for (const leadId in groups) {
+        aggregated.push({
+          leadId: leadId,
+          data8: groups[leadId].data8.join(","),
+          data12: groups[leadId].data12,
+          data16: groups[leadId].data16.join(",")
+        });
+      }
+
+      // Display aggregated FLG data for valid LeadIDs.
+      const extractedContainer = document.getElementById("extractedData");
+      extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Aggregated FLG Data Fields (Valid LeadIDs):</h3>";
+      aggregated.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "p-2 bg-gray-200 rounded my-1 text-left";
+        div.innerHTML = `<strong>Lead ID:</strong> ${item.leadId} <br/>
+                         <strong>data8 (S3 URLs):</strong> ${item.data8} <br/>
+                         <strong>data12 (Date):</strong> ${item.data12} <br/>
+                         <strong>data16 (Bank Info):</strong> ${item.data16}`;
+        extractedContainer.appendChild(div);
+      });
+
+      // Display failed files/LeadIDs with error reasons.
+      const failedContainer = document.getElementById("failedLeads");
+      failedContainer.innerHTML = "<h3 class='font-bold mb-2'>Failed Files / LeadIDs:</h3>";
+      if (failed.length === 0) {
+        failedContainer.innerHTML += "None.";
+      } else {
+        failed.forEach(msg => {
+          const div = document.createElement("div");
+          div.className = "p-2 bg-red-100 rounded my-1 text-left";
+          div.innerText = msg;
+          failedContainer.appendChild(div);
+        });
+      }
+      logProgress("Aggregated FLG data generated for " + aggregated.length + " valid Lead IDs.");
+      if (failed.length > 0) {
+        logProgress("Some files/LeadIDs failed processing. See failed list below.");
+      }
+      return aggregated;
+    }
+
+    // Upload files to AWS S3.
+    async function uploadFilesToS3() {
+      const folderLink = document.getElementById("folderLink").value.trim();
+      if (!folderLink) {
+        alert("Please paste your SharePoint folder link.");
+        return;
+      }
+      logProgress("Uploading files to AWS S3 from folder: " + folderLink);
+      try {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ folderLink })
+        });
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || "S3 upload failed.");
+        logProgress("S3 upload result: " + JSON.stringify(result, null, 2));
+      } catch (err) {
+        logProgress("Error uploading files to AWS S3: " + err);
+        alert("Error uploading files. See progress log for details.");
+      }
+    }
+
+    // New function to upload data to FLG.
+    async function uploadFLGData() {
+      if (!window.aggregatedData || window.aggregatedData.length === 0) {
+        alert("No aggregated data available for FLG update.");
+        return;
+      }
+      for (const item of window.aggregatedData) {
+        try {
+          const response = await fetch("https://web-production-15e92.up.railway.app/api/flg_update_new", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              leadId: item.leadId,
+              data8: item.data8,
+              data12: item.data12,
+              data16: item.data16
+            })
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            logProgress(`FLG update failed for LeadID ${item.leadId}: ${result.error}`);
+          } else {
+            logProgress(`FLG update succeeded for LeadID ${item.leadId}`);
+          }
+        } catch (err) {
+          logProgress(`Error updating FLG for LeadID ${item.leadId}: ${err}`);
+        }
+      }
     }
   </script>
 </head>
-
-<body class="bg-gray-100 p-6">
-  <div id="alertOverlay"></div>
-  <div id="alertBox">
-    <div id="alertMessage"></div>
-    <button id="alertButton" onclick="closeAlert()">OK</button>
-  </div>
-
-  <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
-    <div class="flex justify-between items-center mb-4">
-      <button id="returnMenuBtn" onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'"
-        class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
-        Return to Main Menu
-      </button>
-      <button id="loginBtn" onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
-        class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
-        Log in with Microsoft 365
+<body>
+  <!-- Top bar with unified login button -->
+  <div class="w-full" style="background-color: #D12472;">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center">
+        <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="h-8 w-auto mr-4" />
+        <span class="text-white text-2xl font-bold">BELMOND</span>
+      </div>
+      <button id="loginBtn" onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)"
+              class="text-white px-4 py-2 rounded-md hover:opacity-90">
       </button>
     </div>
-
-    <div class="text-center mb-4">
-      <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true"
-        alt="Company Logo" class="h-16 mx-auto mb-2" />
-      <h1 class="text-2xl font-bold">Affordability Assessment</h1>
-    </div>
-
-    <label for="leadId" class="block mt-4 font-medium">Enter Lead ID:</label>
-    <div class="flex gap-2 mt-2">
-      <input type="text" id="leadId" placeholder="123456789" class="border p-2 flex-1 rounded-md text-gray-600" />
-      <button id="fetchDataBtn" onclick="fetchLeadData()"
-        class="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-blue-700" disabled>Fetch Data</button>
-    </div>
-
-    <div id="timerDisplay" class="mt-4 font-semibold">Timer: 0:00:00</div>
-
-    <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
-    <label class="block mt-2">Full Name:</label>
-    <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-
-    <label class="block mt-2">Bank Accounts to be Considered:</label>
-    <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
-
-    <label class="block mt-2">Period that Bank Statements cover:</label>
-    <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-
-    <div class="hidden">
-      <label class="block mt-2">Paths to Relevant Bank Statements:</label>
-      <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
-    </div>
-
-    <label class="block mt-2">Monthly Repayments being Assessed for Affordability:</label>
-    <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
-
-    <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
-    <div id="bankStatements" class="mt-2"></div>
-
-    <div id="errorContainer"></div>
-    <div id="statementForm"></div>
-
-    <button id="processDataBtn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full"
-      disabled onclick="processFinalData()">Process Data</button>
-
-    <div id="debugOutput"></div>
   </div>
-
-  <div id="processingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-    background:rgba(255,255,255,0.8); z-index:9999; text-align:center;">
-    <div style="position:relative; top:40%; font-size:1.5rem; font-weight:bold; color:#333;">
-      Processing your submission, please wait...
+  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
+    <div id="notLoggedInWarning">
+      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please log in using the button above.</p>
     </div>
+    <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true" alt="Company Logo" class="h-16 mx-auto mb-4" />
+    <h1 class="text-2xl font-bold mb-4">SharePoint to AWS Uploader</h1>
+    <div class="mb-4">
+      <label for="folderLink" class="block font-medium mb-2">Paste SharePoint Folder Link:</label>
+      <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
+    </div>
+
+
+    <div class="flex flex-col gap-4 items-center">
+      <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+        List Files (SharePoint)
+      </button>
+      <div id="filesContainer" class="mt-2 w-full"></div>
+      <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+        Upload Files to AWS S3
+      </button>
+      <button id="flgUpdateBtn" onclick="uploadFLGData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+        Upload data to FLG
+      </button>
+    </div>
+
+    
+    <!-- Container for progress log -->
+    <div id="progressLog"></div>
+    <!-- Container for aggregated FLG data -->
+    <div id="extractedData" class="mt-4 w-full"></div>
+    <!-- Container for failed files/LeadIDs -->
+    <div id="failedLeads" class="mt-4 w-full"></div>
   </div>
+  <!-- Fixed logo in bottom-right corner -->
+  <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="fixed-bottom-right-logo" />
 </body>
 </html>
