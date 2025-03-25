@@ -122,7 +122,6 @@
       logProgress("Starting file processing...");
       const folderLink = document.getElementById("folderLink").value.trim();
       logProgress("Processing folder: " + folderLink);
-    
       try {
         logProgress("Initiating upload to backend...");
         const resp = await fetch("https://web-production-15e92.up.railway.app/trigger-statement-upload", {
@@ -133,8 +132,6 @@
         });
         const result = await resp.json();
         if (!resp.ok) throw new Error(result.error || "Upload failed.");
-    
-        // Log the detailed processing steps returned from backend.
         if (result.steps && Array.isArray(result.steps)) {
           logProgress("Processing steps:");
           result.steps.forEach((step, idx) => {
@@ -155,7 +152,6 @@
         alert("Error processing files. See progress log for details.");
       }
     }
-    
   </script>
 </head>
 <body>
