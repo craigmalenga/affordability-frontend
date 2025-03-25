@@ -12,8 +12,8 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      /* Use the background from index.html: gradient from blue to pink */
-      background: linear-gradient(135deg, #007EB4, #E91E63);
+      /* Blue to pink gradient background */
+      background: linear-gradient(to bottom right, #5D2C6D 0%, #2E2F43 20%, #2E2F43 100%);
       background-size: cover;
     }
     #progressLog {
@@ -72,11 +72,13 @@
         if (!data.logged_in) {
           document.getElementById("notLoggedInWarning").style.display = "block";
           document.getElementById("listFilesBtn").disabled = true;
+          document.getElementById("extractBtn").disabled = true;
           document.getElementById("flgBtn").disabled = true;
           document.getElementById("filesBtn").disabled = true;
         } else {
           document.getElementById("notLoggedInWarning").style.display = "none";
           document.getElementById("listFilesBtn").disabled = false;
+          document.getElementById("extractBtn").disabled = false;
           document.getElementById("flgBtn").disabled = false;
           document.getElementById("filesBtn").disabled = false;
         }
@@ -93,6 +95,7 @@
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
     });
+    // For "List Files" button (optional)
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -110,51 +113,93 @@
         }
         const data = await response.json();
         if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
-        renderFileList(data.value);
+        // Optionally, display file names
+        const container = document.getElementById("filesContainer");
+        container.innerHTML = "";
+        data.value.forEach(file => {
+          const div = document.createElement("div");
+          div.className = "p-2 bg-gray-100 rounded my-1 text-left";
+          div.innerText = file.name;
+          container.appendChild(div);
+        });
         logProgress(`Found ${data.value.length} file(s).`);
       } catch (error) {
         logProgress("Error listing files: " + error);
         alert("Error listing files. See progress log for details.");
       }
     }
-    function renderFileList(files) {
-      const container = document.getElementById("filesContainer");
-      container.innerHTML = "";
-      files.forEach(file => {
-        const div = document.createElement("div");
-        div.className = "p-2 bg-gray-100 rounded my-1 text-left";
-        div.innerText = file.name;
-        container.appendChild(div);
-      });
-    }
-    async function handleProcessFiles(mode) {
-      logProgress("Starting file processing...");
+    // This function calls a new endpoint to extract FLG fields from filenames.
+    async function extractFLGData() {
       const folderLink = document.getElementById("folderLink").value.trim();
-      logProgress("Processing folder: " + folderLink);
-      logProgress("Mode: " + mode);
+      if (!folderLink) {
+        alert("Please paste your SharePoint folder link.");
+        return;
+      }
+      logProgress("Extracting FLG data from filenames in folder: " + folderLink);
       try {
-        logProgress("Initiating upload to backend...");
-        const resp = await fetch("https://web-production-15e92.up.railway.app/trigger-statement-upload", {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/extract-flg-data", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ folderLink, mode })
+          body: JSON.stringify({ folderLink })
         });
         const result = await resp.json();
-        if (!resp.ok) throw new Error(result.error || "Upload failed.");
-        logProgress("Operation completed successfully.");
-        if (result.output && result.output.steps) {
-          logProgress("Debug Output:");
-          result.output.steps.forEach((step, idx) => {
-            logProgress("Step " + (idx + 1) + ": " + JSON.stringify(step));
-          });
-        } else {
-          logProgress("No detailed steps returned.");
-        }
-        logProgress("File processing complete.");
+        if (!resp.ok) throw new Error(result.error || "Extraction failed.");
+        logProgress("Extraction complete. Planned FLG fields per Lead:");
+        logProgress(JSON.stringify(result, null, 2));
       } catch (err) {
-        logProgress("Error processing files: " + err);
-        alert("Error processing files. See progress log for details.");
+        logProgress("Error extracting FLG data: " + err);
+        alert("Error extracting FLG data. See progress log for details.");
+      }
+    }
+    // This function calls the endpoint to upload FLG fields only.
+    async function uploadFLGFields() {
+      // For simplicity, we assume the user enters a Lead ID and the planned fields manually
+      const leadId = document.getElementById("leadId").value.trim();
+      const data8 = document.getElementById("data8").value.trim();
+      const data12 = document.getElementById("data12").value.trim();
+      const data16 = document.getElementById("data16").value.trim();
+      if (!leadId || !data8 || !data12 || !data16) {
+        alert("Please enter Lead ID and all planned FLG field values.");
+        return;
+      }
+      logProgress("Uploading FLG fields for Lead " + leadId);
+      try {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/upload-flg-fields", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ leadId, data8, data12, data16 })
+        });
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || "FLG upload failed.");
+        logProgress("FLG upload result: " + JSON.stringify(result, null, 2));
+      } catch (err) {
+        logProgress("Error uploading FLG fields: " + err);
+        alert("Error uploading FLG fields. See progress log for details.");
+      }
+    }
+    // This function calls the endpoint to upload files to AWS S3.
+    async function uploadFilesToS3() {
+      const folderLink = document.getElementById("folderLink").value.trim();
+      if (!folderLink) {
+        alert("Please paste your SharePoint folder link.");
+        return;
+      }
+      logProgress("Uploading files to AWS S3 from folder: " + folderLink);
+      try {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ folderLink })
+        });
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || "S3 upload failed.");
+        logProgress("S3 upload result: " + JSON.stringify(result, null, 2));
+      } catch (err) {
+        logProgress("Error uploading files to AWS S3: " + err);
+        alert("Error uploading files. See progress log for details.");
       }
     }
   </script>
@@ -187,11 +232,14 @@
         List Files (SharePoint)
       </button>
       <div id="filesContainer" class="mt-2 w-full"></div>
-      <button id="flgBtn" onclick="handleProcessFiles('flg')" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-        Upload info to FLG
+      <button id="extractBtn" onclick="handleProcessFiles('extract')" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+        Extract FLG Data from File Names
       </button>
-      <button id="filesBtn" onclick="handleProcessFiles('files')" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-        Upload files to AWS S3
+      <button id="flgBtn" onclick="uploadFLGFields()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+        Upload Info to FLG
+      </button>
+      <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+        Upload Files to AWS S3
       </button>
     </div>
     <!-- Visible progress log area -->
