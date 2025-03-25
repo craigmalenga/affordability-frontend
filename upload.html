@@ -12,10 +12,10 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
+      /* Use the background from index.html: gradient from blue to pink */
+      background: linear-gradient(135deg, #007EB4, #E91E63);
       background-size: cover;
     }
-    /* Visible progress log */
     #progressLog {
       white-space: pre-line;
       background: #e0f7fa;
@@ -37,6 +37,13 @@
       border: 1px solid #f87171;
       border-radius: 0.5rem;
       text-align: left;
+    }
+    .fixed-bottom-right-logo {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 100px;
+      height: auto;
     }
   </style>
   <script defer>
@@ -65,11 +72,13 @@
         if (!data.logged_in) {
           document.getElementById("notLoggedInWarning").style.display = "block";
           document.getElementById("listFilesBtn").disabled = true;
-          document.getElementById("processFilesBtn").disabled = true;
+          document.getElementById("flgBtn").disabled = true;
+          document.getElementById("filesBtn").disabled = true;
         } else {
           document.getElementById("notLoggedInWarning").style.display = "none";
           document.getElementById("listFilesBtn").disabled = false;
-          document.getElementById("processFilesBtn").disabled = false;
+          document.getElementById("flgBtn").disabled = false;
+          document.getElementById("filesBtn").disabled = false;
         }
         updateLoginButton();
       } catch (err) {
@@ -118,33 +127,29 @@
         container.appendChild(div);
       });
     }
-    async function handleProcessFiles() {
+    async function handleProcessFiles(mode) {
       logProgress("Starting file processing...");
       const folderLink = document.getElementById("folderLink").value.trim();
       logProgress("Processing folder: " + folderLink);
+      logProgress("Mode: " + mode);
       try {
         logProgress("Initiating upload to backend...");
         const resp = await fetch("https://web-production-15e92.up.railway.app/trigger-statement-upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ folderLink })
+          body: JSON.stringify({ folderLink, mode })
         });
         const result = await resp.json();
         if (!resp.ok) throw new Error(result.error || "Upload failed.");
-        if (result.steps && Array.isArray(result.steps)) {
-          logProgress("Processing steps:");
-          result.steps.forEach((step, idx) => {
-            let msg = `Step ${idx + 1}: `;
-            if (step.filename) msg += `File: ${step.filename}. `;
-            if (step.data8) msg += `S3 URL (data8): ${step.data8}. `;
-            if (step.data12) msg += `Date (data12): ${step.data12}. `;
-            if (step.data16) msg += `Bank info (data16): ${step.data16}. `;
-            if (step.flgResponse) msg += `FLG Response: ${step.flgResponse}. `;
-            logProgress(msg);
+        logProgress("Operation completed successfully.");
+        if (result.output && result.output.steps) {
+          logProgress("Debug Output:");
+          result.output.steps.forEach((step, idx) => {
+            logProgress("Step " + (idx + 1) + ": " + JSON.stringify(step));
           });
         } else {
-          logProgress("No detailed processing steps returned.");
+          logProgress("No detailed steps returned.");
         }
         logProgress("File processing complete.");
       } catch (err) {
@@ -182,12 +187,17 @@
         List Files (SharePoint)
       </button>
       <div id="filesContainer" class="mt-2 w-full"></div>
-      <button id="processFilesBtn" onclick="handleProcessFiles()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-        Process Files
+      <button id="flgBtn" onclick="handleProcessFiles('flg')" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+        Upload info to FLG
+      </button>
+      <button id="filesBtn" onclick="handleProcessFiles('files')" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+        Upload files to AWS S3
       </button>
     </div>
     <!-- Visible progress log area -->
     <div id="progressLog"></div>
   </div>
+  <!-- Fixed logo in bottom-right corner -->
+  <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="fixed-bottom-right-logo" />
 </body>
 </html>
