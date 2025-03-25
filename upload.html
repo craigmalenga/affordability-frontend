@@ -118,7 +118,7 @@
         const data = await response.json();
         if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
 
-        // Optionally, display file names
+        // Display file names in container
         const container = document.getElementById("filesContainer");
         container.innerHTML = "";
         data.value.forEach(file => {
@@ -128,10 +128,35 @@
           container.appendChild(div);
         });
         logProgress(`Found ${data.value.length} file(s).`);
+
+        // Process filenames to extract FLG data fields and display them
+        processFilenames(data.value);
       } catch (error) {
         logProgress("Error listing files: " + error);
         alert("Error listing files. See progress log for details.");
       }
+    }
+
+    // New function: Process filenames to extract FLG data fields
+    // Assumes filenames are in the format: leadId-bankName-startDate-account.pdf
+    function processFilenames(files) {
+      const extractedContainer = document.getElementById("extractedData");
+      extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Extracted FLG Data Fields:</h3>";
+      files.forEach(file => {
+        const parts = file.name.split("-");
+        const leadId = parts[0] || "UnknownLead";
+        const bankName = parts[1] || "UnknownBank";
+        const startDate = parts[2] || "UnknownStartDate";
+        const accountPart = parts[3] || "UnknownAccount";
+        const account = accountPart.split(".")[0]; // remove extension if present
+        const infoDiv = document.createElement("div");
+        infoDiv.className = "p-2 bg-gray-200 rounded my-1 text-left";
+        infoDiv.innerHTML = `<strong>Lead ID:</strong> ${leadId} <br/>
+                             <strong>Bank Name:</strong> ${bankName} <br/>
+                             <strong>Start Date:</strong> ${startDate} <br/>
+                             <strong>Account:</strong> ${account}`;
+        extractedContainer.appendChild(infoDiv);
+      });
     }
 
     // This function calls a new endpoint to extract FLG fields from filenames.
@@ -259,8 +284,10 @@
         Upload Files to AWS S3
       </button>
     </div>
-    <!-- Visible progress log area -->
+    <!-- Container for progress log -->
     <div id="progressLog"></div>
+    <!-- Container for extracted FLG data from filenames -->
+    <div id="extractedData" class="mt-4 w-full"></div>
   </div>
   <!-- Fixed logo in bottom-right corner -->
   <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="fixed-bottom-right-logo" />
