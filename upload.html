@@ -13,7 +13,7 @@
       padding: 0;
       min-height: 100vh;
       /* Blue to pink gradient background */
-      background: linear-gradient(to bottom right, #5D2C6D 0%, #2E2F43 20%, #2E2F43 100%);
+      background: linear-gradient(to bottom right, #2E2F43 0%, #2E2F43 85%, #5D2C6D 100%);
       background-size: cover;
     }
     #progressLog {
@@ -65,6 +65,7 @@
         console.error("Error updating login button:", error);
       }
     }
+
     async function checkSession() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -87,14 +88,17 @@
         console.error("Error checking session:", err);
       }
     }
+
     function logProgress(msg) {
       console.log(msg);
       const progDiv = document.getElementById("progressLog");
       progDiv.innerText += msg + "\n";
     }
+
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
     });
+
     // For "List Files" button (optional)
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
@@ -113,6 +117,7 @@
         }
         const data = await response.json();
         if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
+
         // Optionally, display file names
         const container = document.getElementById("filesContainer");
         container.innerHTML = "";
@@ -128,6 +133,7 @@
         alert("Error listing files. See progress log for details.");
       }
     }
+
     // This function calls a new endpoint to extract FLG fields from filenames.
     async function extractFLGData() {
       const folderLink = document.getElementById("folderLink").value.trim();
@@ -152,13 +158,14 @@
         alert("Error extracting FLG data. See progress log for details.");
       }
     }
+
     // This function calls the endpoint to upload FLG fields only.
     async function uploadFLGFields() {
-      // For simplicity, we assume the user enters a Lead ID and the planned fields manually
       const leadId = document.getElementById("leadId").value.trim();
       const data8 = document.getElementById("data8").value.trim();
       const data12 = document.getElementById("data12").value.trim();
       const data16 = document.getElementById("data16").value.trim();
+
       if (!leadId || !data8 || !data12 || !data16) {
         alert("Please enter Lead ID and all planned FLG field values.");
         return;
@@ -179,6 +186,7 @@
         alert("Error uploading FLG fields. See progress log for details.");
       }
     }
+
     // This function calls the endpoint to upload files to AWS S3.
     async function uploadFilesToS3() {
       const folderLink = document.getElementById("folderLink").value.trim();
@@ -200,6 +208,15 @@
       } catch (err) {
         logProgress("Error uploading files to AWS S3: " + err);
         alert("Error uploading files. See progress log for details.");
+      }
+    }
+
+    // New function to handle the onclick for "Extract FLG Data" button
+    function handleProcessFiles(action) {
+      if (action === "extract") {
+        extractFLGData();
+      } else {
+        console.log("Unknown action:", action);
       }
     }
   </script>
