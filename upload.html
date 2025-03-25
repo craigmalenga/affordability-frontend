@@ -83,10 +83,12 @@
           document.getElementById("notLoggedInWarning").style.display = "block";
           document.getElementById("listFilesBtn").disabled = true;
           document.getElementById("filesBtn").disabled = true;
+          document.getElementById("flgUpdateBtn").disabled = true;
         } else {
           document.getElementById("notLoggedInWarning").style.display = "none";
           document.getElementById("listFilesBtn").disabled = false;
           document.getElementById("filesBtn").disabled = false;
+          document.getElementById("flgUpdateBtn").disabled = false;
         }
         updateLoginButton();
       } catch (err) {
@@ -134,7 +136,9 @@
         logProgress(`Found ${data.value.length} file(s).`);
 
         // Process filenames to generate aggregated FLG data fields per unique Lead ID.
-        aggregateFLGData(data.value);
+        const aggregated = aggregateFLGData(data.value);
+        // Store aggregated data in a global variable for FLG update.
+        window.aggregatedData = aggregated;
       } catch (error) {
         logProgress("Error listing files: " + error);
         alert("Error listing files. See progress log for details.");
@@ -210,7 +214,7 @@
           // If the datePart for another file in the same lead differs, flag an error.
           if (groups[leadId].data12 !== datePart) {
             failed.push(`Inconsistent date for LeadID "${leadId}": "${groups[leadId].data12}" vs. "${datePart}".`);
-            // Mark this group as failed by deleting it.
+            // Remove group to prevent partial update.
             delete groups[leadId];
             return;
           }
@@ -219,9 +223,7 @@
         groups[leadId].data16.push(`${bankName}-${accountNumber}`);
       });
 
-      // Display aggregated FLG data for valid LeadIDs.
-      const extractedContainer = document.getElementById("extractedData");
-      extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Aggregated FLG Data Fields (Valid LeadIDs):</h3>";
+      // Build aggregated data array.
       const aggregated = [];
       for (const leadId in groups) {
         aggregated.push({
@@ -231,6 +233,10 @@
           data16: groups[leadId].data16.join(",")
         });
       }
+
+      // Display aggregated FLG data for valid LeadIDs.
+      const extractedContainer = document.getElementById("extractedData");
+      extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Aggregated FLG Data Fields (Valid LeadIDs):</h3>";
       aggregated.forEach(item => {
         const div = document.createElement("div");
         div.className = "p-2 bg-gray-200 rounded my-1 text-left";
@@ -258,6 +264,7 @@
       if (failed.length > 0) {
         logProgress("Some files/LeadIDs failed processing. See failed list below.");
       }
+      return aggregated;
     }
 
     // Upload files to AWS S3.
@@ -281,6 +288,37 @@
       } catch (err) {
         logProgress("Error uploading files to AWS S3: " + err);
         alert("Error uploading files. See progress log for details.");
+      }
+    }
+
+    // New function to upload data to FLG.
+    async function uploadFLGData() {
+      if (!window.aggregatedData || window.aggregatedData.length === 0) {
+        alert("No aggregated data available for FLG update.");
+        return;
+      }
+      for (const item of window.aggregatedData) {
+        try {
+          const response = await fetch("https://web-production-15e92.up.railway.app/api/flg_update_new", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              leadId: item.leadId,
+              data8: item.data8,
+              data12: item.data12,
+              data16: item.data16
+            })
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            logProgress(`FLG update failed for LeadID ${item.leadId}: ${result.error}`);
+          } else {
+            logProgress(`FLG update succeeded for LeadID ${item.leadId}`);
+          }
+        } catch (err) {
+          logProgress(`Error updating FLG for LeadID ${item.leadId}: ${err}`);
+        }
       }
     }
   </script>
@@ -315,6 +353,9 @@
       <div id="filesContainer" class="mt-2 w-full"></div>
       <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
         Upload Files to AWS S3
+      </button>
+      <button id="flgUpdateBtn" onclick="uploadFLGData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+        Upload data to FLG
       </button>
     </div>
     <!-- Container for progress log -->
