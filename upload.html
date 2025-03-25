@@ -12,6 +12,7 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
+      /* Blue to pink gradient background */
       background: linear-gradient(to bottom right, #2E2F43 0%, #2E2F43 85%, #5D2C6D 100%);
       background-size: cover;
     }
@@ -52,37 +53,9 @@
       width: 100px;
       height: auto;
     }
-    /* Updated styles for the text container */
-    #textContainer {
-      margin-top: 50px;  /* 50px from the top */
-      font-size: 1.2rem; /* Bigger font size */
-      color: #ffffff;
-      text-align: left;
-      padding-left: 20px;
-      max-width: 90%;
-      margin-bottom: 50px;
-    }
-    #textContainer h2 {
-      font-size: 2rem; /* Increased header font size */
-      font-weight: bold;
-      margin-bottom: 1rem;
-    }
-    #textContainer p {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-    }
-    #portalBox {
-      position: absolute;
-      bottom: 100px;
-      width: 90%;
-      margin-left: 5%;
-      background-color: white;
-      padding: 2rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      border-radius: 8px;
-    }
   </style>
   <script defer>
+    // Check session status and update login button.
     async function updateLoginButton() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -137,6 +110,7 @@
       checkSession();
     });
 
+    // "List Files" button functionality
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -155,8 +129,11 @@
         const data = await response.json();
         if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
 
+        // Display raw file names
         renderFileList(data.value);
         logProgress(`Found ${data.value.length} file(s).`);
+
+        // Process filenames to generate aggregated FLG data fields per unique Lead ID.
         aggregateFLGData(data.value);
       } catch (error) {
         logProgress("Error listing files: " + error);
@@ -175,19 +152,28 @@
       });
     }
 
+    // Generate a random 9-digit number as a zero-padded string.
     function generateRandom9Digit() {
       const num = Math.floor(1 + Math.random() * 999999999); // from 1 to 999999999
       return String(num).padStart(9, "0");
     }
 
+    // Base URL for S3 – adjust if needed.
     const S3_BASE_URL = "https://affordability-statememts.s3.eu-north-1.amazonaws.com/";
 
+    // Process filenames and aggregate FLG data fields per unique Lead ID.
+    // Expected filename format: <LeadID>-<Bank>-<MmmYYYY>-<AccountNumber>.pdf
+    // For S3 upload, we add a random 9-digit number:
+    // <LeadID>-<Bank>-<MmmYYYY>-<AccountNumber>-<random9digits>.pdf
+    // data12: the date (MmmYYYY) must be identical for all files of a LeadID;
+    // data16: comma-separated <Bank>-<AccountNumber> pairs.
     function aggregateFLGData(files) {
       const groups = {};  // valid files grouped by LeadID
       const failed = [];  // array of error messages
 
       files.forEach(file => {
         let originalFilename = file.name;
+        // Remove ".pdf" extension (case-insensitive)
         let filename = originalFilename;
         if (filename.toLowerCase().endsWith(".pdf")) {
           filename = filename.slice(0, -4);
@@ -199,27 +185,32 @@
         }
         const leadId = parts[0];
         const bankName = parts[1];
-        const datePart = parts[2];
+        const datePart = parts[2];  // expected in MmmYYYY format
         const accountNumber = parts[3];
 
+        // Validate datePart with a regex (3 letters followed by 4 digits)
         if (!/^[A-Za-z]{3}\d{4}$/.test(datePart)) {
           failed.push(`File "${originalFilename}" has invalid date part "${datePart}" (expected format MmmYYYY).`);
           return;
         }
 
+        // Build final S3 filename (append a random 9-digit number)
         const randomDigits = generateRandom9Digit();
         const finalS3Filename = `${leadId}-${bankName}-${datePart}-${accountNumber}-${randomDigits}.pdf`;
         const finalS3Url = `${S3_BASE_URL}${finalS3Filename}`;
 
+        // Initialize group for this leadId if not already created.
         if (!groups[leadId]) {
           groups[leadId] = {
-            data8: [],
-            data12: datePart,
-            data16: []
+            data8: [],    // Will hold S3 URLs.
+            data12: datePart,  // Expected date for this lead.
+            data16: []    // Will hold bank-account pairs.
           };
         } else {
+          // If the datePart for another file in the same lead differs, flag an error.
           if (groups[leadId].data12 !== datePart) {
             failed.push(`Inconsistent date for LeadID "${leadId}": "${groups[leadId].data12}" vs. "${datePart}".`);
+            // Mark this group as failed by deleting it.
             delete groups[leadId];
             return;
           }
@@ -228,6 +219,7 @@
         groups[leadId].data16.push(`${bankName}-${accountNumber}`);
       });
 
+      // Display aggregated FLG data for valid LeadIDs.
       const extractedContainer = document.getElementById("extractedData");
       extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Aggregated FLG Data Fields (Valid LeadIDs):</h3>";
       const aggregated = [];
@@ -249,6 +241,7 @@
         extractedContainer.appendChild(div);
       });
 
+      // Display failed Lead IDs or files with error reasons.
       const failedContainer = document.getElementById("failedLeads");
       failedContainer.innerHTML = "<h3 class='font-bold mb-2'>Failed Files / LeadIDs:</h3>";
       if (failed.length === 0) {
@@ -267,6 +260,7 @@
       }
     }
 
+    // Upload files to AWS S3.
     async function uploadFilesToS3() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -304,33 +298,32 @@
       </button>
     </div>
   </div>
-
-  <!-- Text container with updated message -->
-  <div id="textContainer">
-    <h2>Our daily efforts truly make a difference.</h2>
-    <p>The data we process is more than just numbers—it embodies genuine impact on individuals in our community, especially those who may be most at risk.</p>
-    <p>Every piece of information you handle carries the trust of someone who depends on our support, helping to secure the fair outcomes our clients deserve.</p>
-    <p>Thank you for your commitment.</p>
+  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
+    <div id="notLoggedInWarning">
+      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please log in using the button above.</p>
+    </div>
+    <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true" alt="Company Logo" class="h-16 mx-auto mb-4" />
+    <h1 class="text-2xl font-bold mb-4">SharePoint to AWS Uploader</h1>
+    <div class="mb-4">
+      <label for="folderLink" class="block font-medium mb-2">Paste SharePoint Folder Link:</label>
+      <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
+    </div>
+    <div class="flex flex-col gap-4 items-center">
+      <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+        List Files (SharePoint)
+      </button>
+      <div id="filesContainer" class="mt-2 w-full"></div>
+      <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+        Upload Files to AWS S3
+      </button>
+    </div>
+    <!-- Container for progress log -->
+    <div id="progressLog"></div>
+    <!-- Container for aggregated FLG data -->
+    <div id="extractedData" class="mt-4 w-full"></div>
+    <!-- Container for failed files/LeadIDs -->
+    <div id="failedLeads" class="mt-4 w-full"></div>
   </div>
-
-  <div id="portalBox">
-    <h3 class="text-xl font-bold mb-4">Affordability Assessment Portal</h3>
-    <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-      List Files (SharePoint)
-    </button>
-    <div id="filesContainer" class="mt-2 w-full"></div>
-    <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-      Upload Files to AWS S3
-    </button>
-  </div>
-
-  <!-- Container for progress log -->
-  <div id="progressLog"></div>
-  <!-- Container for aggregated FLG data -->
-  <div id="extractedData" class="mt-4 w-full"></div>
-  <!-- Container for failed files/LeadIDs -->
-  <div id="failedLeads" class="mt-4 w-full"></div>
-  
   <!-- Fixed logo in bottom-right corner -->
   <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="fixed-bottom-right-logo" />
 </body>

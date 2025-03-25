@@ -34,6 +34,34 @@
       width: 100px;
       height: auto;
     }
+    /* Updated staff message container */
+    #staffMessage {
+      margin: 50px 5% 20px 5%;
+      padding: 20px;
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      text-align: left;
+    }
+    #staffMessage h2 {
+      font-size: 2.2rem;
+      margin-bottom: 1rem;
+      color: #2E2F43;
+    }
+    #staffMessage p {
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+      color: #2E2F43;
+      line-height: 1.5;
+    }
+    /* Portal box positioned higher */
+    #portalBox {
+      margin: 20px 5%;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
   </style>
 
   <script defer>
@@ -75,29 +103,21 @@
       <button id="loginBtn"
               onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)"
               class="brand-font text-white px-4 py-2 rounded-full hover:opacity-90">
-        <!-- The text will be updated by updateLoginButton() -->
+        <!-- Text updated by updateLoginButton() -->
       </button>
     </div>
   </div>
 
-  <!-- Large, centered Brandon Grotesque text -->
-  <div 
-    class="flex flex-col justify-center items-center text-white brand-font px-4 text-center"
-    style="height: calc(100vh - 120px);"
-  >
-    <h1 class="text-4xl mb-6">Our daily efforts truly make a difference</h1>
-    <p class="text-2xl mb-4 max-w-2xl">
-      The data we process is more than paperwork—it represents real-life situations with genuine impact
-    </p>
-    <p class="text-2xl mb-4 max-w-2xl">
-      Every piece of information you handle carries the trust of someone relying on our support and
-      helps secure the fair outcome our clients deserve
-    </p>
-    <p class="text-2xl max-w-2xl">Thank you for your commitment</p>
+  <!-- Staff Message Container (moved higher and styled) -->
+  <div id="staffMessage">
+    <h2>Our daily efforts truly make a difference.</h2>
+    <p>The data we process is more than just numbers—it embodies genuine impact on individuals in our community, especially those who may be most at risk.</p>
+    <p>Every piece of information you handle carries the trust of someone who depends on our support, helping to secure the fair outcomes our clients deserve.</p>
+    <p>Thank you for your commitment.</p>
   </div>
 
-  <!-- Main content area -->
-  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
+  <!-- Affordability Assessment Portal Box (positioned higher on the page) -->
+  <div id="portalBox">
     <h1 class="text-2xl brand-font mb-4">Affordability Assessment Portal</h1>
     <div class="flex justify-center gap-4">
       <button onclick="window.location.href='upload.html'" class="brand-font text-white px-6 py-3 rounded-full" style="background-color: #007EB4;">
