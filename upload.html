@@ -118,7 +118,7 @@
         const data = await response.json();
         if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
 
-        // Display file names in container
+        // Display raw file names
         const container = document.getElementById("filesContainer");
         container.innerHTML = "";
         data.value.forEach(file => {
@@ -129,37 +129,80 @@
         });
         logProgress(`Found ${data.value.length} file(s).`);
 
-        // Process filenames to extract FLG data fields and display them
-        processFilenames(data.value);
+        // Process filenames to generate aggregated FLG data fields per unique Lead ID.
+        aggregateFLGData(data.value);
       } catch (error) {
         logProgress("Error listing files: " + error);
         alert("Error listing files. See progress log for details.");
       }
     }
 
-    // New function: Process filenames to extract FLG data fields
-    // Assumes filenames are in the format: leadId-bankName-startDate-account.pdf
-    function processFilenames(files) {
-      const extractedContainer = document.getElementById("extractedData");
-      extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Extracted FLG Data Fields:</h3>";
-      files.forEach(file => {
-        const parts = file.name.split("-");
-        const leadId = parts[0] || "UnknownLead";
-        const bankName = parts[1] || "UnknownBank";
-        const startDate = parts[2] || "UnknownStartDate";
-        const accountPart = parts[3] || "UnknownAccount";
-        const account = accountPart.split(".")[0]; // remove extension if present
-        const infoDiv = document.createElement("div");
-        infoDiv.className = "p-2 bg-gray-200 rounded my-1 text-left";
-        infoDiv.innerHTML = `<strong>Lead ID:</strong> ${leadId} <br/>
-                             <strong>Bank Name:</strong> ${bankName} <br/>
-                             <strong>Start Date:</strong> ${startDate} <br/>
-                             <strong>Account:</strong> ${account}`;
-        extractedContainer.appendChild(infoDiv);
-      });
+    // Generate a random 9-digit number as a string.
+    function generateRandom9Digit() {
+      return Math.floor(100000000 + Math.random() * 900000000).toString();
     }
 
-    // This function calls a new endpoint to extract FLG fields from filenames.
+    // Process filenames and aggregate FLG data fields per unique Lead ID.
+    // Assumes filenames are in the format:
+    // leadId-bankName-startDate-account-<random9digits>.pdf
+    function aggregateFLGData(files) {
+      const groups = {};
+      files.forEach(file => {
+        // Remove the .pdf extension if present.
+        let filename = file.name;
+        if (filename.toLowerCase().endsWith(".pdf")) {
+          filename = filename.slice(0, -4);
+        }
+        const parts = filename.split("-");
+        if (parts.length < 5) {
+          logProgress("Filename format invalid: " + file.name);
+          return;
+        }
+        const leadId = parts[0];
+        const bankName = parts[1];
+        const startDate = parts[2];
+        const account = parts[3];
+        // Ignore parts[4] (random segment).
+        if (!groups[leadId]) {
+          groups[leadId] = {
+            data12: startDate, // fixed per Lead ID.
+            data16: [], // will hold bankName-account entries.
+            data8: []   // will hold generated URLs.
+          };
+        }
+        groups[leadId].data16.push(`${bankName}-${account}`);
+        // For data8, generate a URL (simulate with new random 9-digit number).
+        const randomNum = generateRandom9Digit();
+        groups[leadId].data8.push(`https://flg.example.com/${randomNum}`);
+      });
+
+      // Build aggregated data fields.
+      const aggregated = [];
+      for (const leadId in groups) {
+        aggregated.push({
+          leadId: leadId,
+          data8: groups[leadId].data8.join(","),
+          data12: groups[leadId].data12,
+          data16: groups[leadId].data16.join(",")
+        });
+      }
+
+      // Display the aggregated FLG data.
+      const extractedContainer = document.getElementById("extractedData");
+      extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Aggregated FLG Data Fields:</h3>";
+      aggregated.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "p-2 bg-gray-200 rounded my-1 text-left";
+        div.innerHTML = `<strong>Lead ID:</strong> ${item.leadId} <br/>
+                         <strong>data8 (URLs):</strong> ${item.data8} <br/>
+                         <strong>data12 (Start Date):</strong> ${item.data12} <br/>
+                         <strong>data16 (Bank Info):</strong> ${item.data16}`;
+        extractedContainer.appendChild(div);
+      });
+      logProgress("Aggregated FLG data generated for " + aggregated.length + " unique Lead IDs.");
+    }
+
+    // The following functions remain unchanged.
     async function extractFLGData() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -184,7 +227,6 @@
       }
     }
 
-    // This function calls the endpoint to upload FLG fields only.
     async function uploadFLGFields() {
       const leadId = document.getElementById("leadId").value.trim();
       const data8 = document.getElementById("data8").value.trim();
@@ -212,7 +254,6 @@
       }
     }
 
-    // This function calls the endpoint to upload files to AWS S3.
     async function uploadFilesToS3() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -236,7 +277,6 @@
       }
     }
 
-    // New function to handle the onclick for "Extract FLG Data" button
     function handleProcessFiles(action) {
       if (action === "extract") {
         extractFLGData();
@@ -286,7 +326,7 @@
     </div>
     <!-- Container for progress log -->
     <div id="progressLog"></div>
-    <!-- Container for extracted FLG data from filenames -->
+    <!-- Container for aggregated FLG data fields -->
     <div id="extractedData" class="mt-4 w-full"></div>
   </div>
   <!-- Fixed logo in bottom-right corner -->
