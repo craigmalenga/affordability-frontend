@@ -15,40 +15,18 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
-    #debugConsole {
+    /* Debug console hidden, progress log visible */
+    #progressLog {
       white-space: pre-line;
-      background: #f3f4f6;
-      color: #000;
+      background: #e0f7fa;
       padding: 1rem;
       border-radius: 0.5rem;
-      max-height: 250px;
+      max-height: 300px;
       overflow-y: auto;
       font-size: 0.9rem;
-      text-align: left;
-    }
-    #processingOverlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(255,255,255,0.8);
-      z-index: 9999;
-      text-align: center;
-    }
-    #processingOverlay div {
-      position: relative;
-      top: 40%;
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #333;
-    }
-    .disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-    .warning {
-      color: red;
-      font-weight: bold;
+      color: #006064;
+      margin-top: 1rem;
+      border: 1px solid #4dd0e1;
     }
     #notLoggedInWarning {
       display: none;
@@ -62,18 +40,25 @@
     }
   </style>
   <script defer>
-    let debugLogMessages = [];
-    function logDebug(message) {
-      const timestamp = new Date().toLocaleTimeString();
-      const msg = `[${timestamp}] ${message}`;
-      debugLogMessages.push(msg);
-      const consoleDiv = document.getElementById("debugConsole");
-      consoleDiv.textContent += msg + "\n";
-      console.log(msg);
+    // Unified login button status
+    async function updateLoginButton() {
+      try {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
+        const data = await resp.json();
+        const loginBtn = document.getElementById("loginBtn");
+        if (data.logged_in) {
+          loginBtn.innerText = "Logged in";
+          loginBtn.classList.remove("bg-red-600");
+          loginBtn.classList.add("bg-green-600");
+        } else {
+          loginBtn.innerText = "Log in with Microsoft 365";
+          loginBtn.classList.remove("bg-green-600");
+          loginBtn.classList.add("bg-red-600");
+        }
+      } catch (error) {
+        console.error("Error updating login button:", error);
+      }
     }
-
-    const validFilenameRegex = /^[^-]+-[^-]+-[A-Za-z]{3}[0-9]{4}-[0-9]+\.pdf$/;
-
     async function checkSession() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -82,75 +67,64 @@
           document.getElementById("notLoggedInWarning").style.display = "block";
           document.getElementById("listFilesBtn").disabled = true;
           document.getElementById("processFilesBtn").disabled = true;
+        } else {
+          document.getElementById("notLoggedInWarning").style.display = "none";
+          document.getElementById("listFilesBtn").disabled = false;
+          document.getElementById("processFilesBtn").disabled = false;
         }
+        updateLoginButton();
       } catch (err) {
-        logDebug("Error checking session: " + err);
+        console.error("Error checking session:", err);
       }
     }
-
-    function saveDebugLog() {
-      const blob = new Blob([debugLogMessages.join("\n")], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "debug_log.txt";
-      a.click();
-      URL.revokeObjectURL(url);
+    // Log progress to both console and a visible log div.
+    function logProgress(msg) {
+      console.log(msg);
+      const progDiv = document.getElementById("progressLog");
+      progDiv.innerText += msg + "\n";
     }
-
+    window.addEventListener("DOMContentLoaded", () => {
+      checkSession();
+    });
+    // File listing and processing functions remain similar to earlier.
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
         alert("Please paste your SharePoint folder link.");
         return;
       }
+      logProgress("Listing files from: " + folderLink);
       const listUrl = "https://web-production-15e92.up.railway.app/list-files?folderLink=" + encodeURIComponent(folderLink);
-      logDebug("Attempting to list files using URL: " + listUrl);
       try {
         const response = await fetch(listUrl, { credentials: "include" });
         if (!response.ok) {
-          const result = await response.json();
-          throw new Error(result.error || "Unknown error listing files.");
+          const err = await response.json();
+          logProgress("Error: " + JSON.stringify(err));
+          throw new Error("File listing failed.");
         }
-        const result = await response.json();
-        if (!result.value || !Array.isArray(result.value)) throw new Error("No files returned from backend.");
-        renderFileList(result.value);
-        logDebug(`Successfully retrieved ${result.value.length} files.`);
+        const data = await response.json();
+        if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
+        renderFileList(data.value);
+        logProgress(`Found ${data.value.length} file(s).`);
       } catch (error) {
-        logDebug("Failed to list files: " + error);
-        alert("Failed to list files. See debug console for details.");
+        logProgress("Error listing files: " + error);
+        alert("Error listing files. See progress log for details.");
       }
     }
-
     function renderFileList(files) {
       const container = document.getElementById("filesContainer");
       container.innerHTML = "";
       files.forEach(file => {
-        const fileName = file.name || file;
         const div = document.createElement("div");
-        if (!validFilenameRegex.test(fileName)) {
-          div.innerHTML = `<span>${fileName}</span> <span class="warning">(Invalid Naming Format)</span>`;
-          logDebug(`Warning: File "${fileName}" does not match expected naming convention.`);
-        } else {
-          div.textContent = fileName;
-        }
         div.className = "p-2 bg-gray-100 rounded my-1 text-left";
+        div.innerText = file.name;
         container.appendChild(div);
       });
     }
-
-    function disableUI() {
-      document.querySelectorAll("button, input, textarea").forEach(elem => elem.classList.add("disabled"));
-    }
-    function enableUI() {
-      document.querySelectorAll("button, input, textarea").forEach(elem => elem.classList.remove("disabled"));
-    }
-
     async function handleProcessFiles() {
-      disableUI();
-      document.getElementById("processingOverlay").style.display = "block";
+      logProgress("Starting file processing...");
       const folderLink = document.getElementById("folderLink").value.trim();
-      logDebug("Processing files for folder link: " + folderLink);
+      logProgress("Processing folder: " + folderLink);
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/trigger-statement-upload", {
           method: "POST",
@@ -159,52 +133,47 @@
           body: JSON.stringify({ folderLink })
         });
         const result = await resp.json();
-        if (!resp.ok) {
-          throw new Error(result.error || "Unknown upload failure.");
-        }
-        logDebug("Upload successful: " + JSON.stringify(result.message));
+        if (!resp.ok) throw new Error(result.error || "Upload failed.");
         if (result.output && result.output.steps) {
-          logDebug("----- Detailed Steps from sharepoint_uploader.py -----");
-          result.output.steps.forEach((stepObj, idx) => {
-            const detailStr = JSON.stringify(stepObj);
-            logDebug(`Step ${idx + 1}: ${detailStr}`);
+          logProgress("Processing steps:");
+          result.output.steps.forEach((step, idx) => {
+            let msg = `Step ${idx + 1}: `;
+            if (step.filename) msg += `File: ${step.filename}. `;
+            // For LHS, we expect the following keys:
+            // data8: S3 URL, data12: start date, data16: bank info
+            if (step.data8) msg += `S3 URL: ${step.data8}. `;
+            if (step.data12) msg += `Date: ${step.data12}. `;
+            if (step.data16) msg += `Bank info: ${step.data16}. `;
+            if (step.detail) msg += `Detail: ${step.detail}`;
+            logProgress(msg);
           });
-          logDebug("----- End of Detailed Steps -----");
         } else {
-          logDebug("No step-by-step logs found in response.");
+          logProgress("No detailed processing steps returned.");
         }
-        alert("Processing complete and upload successful!");
+        logProgress("File processing complete.");
       } catch (err) {
-        logDebug("Processing failed: " + err);
-        alert("Processing failed. See debug console below.");
-      } finally {
-        enableUI();
-        document.getElementById("processingOverlay").style.display = "none";
+        logProgress("Error processing files: " + err);
+        alert("Error processing files. See progress log for details.");
       }
     }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      checkSession();
-    });
   </script>
 </head>
 <body>
-  <!-- Top bar with login button -->
+  <!-- Top bar with unified login button -->
   <div class="w-full" style="background-color: #D12472;">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center">
         <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="h-8 w-auto mr-4" />
-        <span class="text-white text-2xl brand-font">BELMOND</span>
+        <span class="text-white text-2xl font-bold">BELMOND</span>
       </div>
-      <button onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)" class="brand-font bg-white text-[#D12472] px-4 py-2 rounded-full hover:opacity-90" style="font-weight: bold;">
-        Login
+      <button id="loginBtn" onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)"
+              class="text-white px-4 py-2 rounded-md hover:opacity-90">
       </button>
     </div>
   </div>
-
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
     <div id="notLoggedInWarning">
-      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please return to the <a href="index.html" class="underline text-blue-600">Main Menu</a> to log in.</p>
+      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please log in using the button above.</p>
     </div>
     <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true" alt="Company Logo" class="h-16 mx-auto mb-4" />
     <h1 class="text-2xl font-bold mb-4">SharePoint to AWS Uploader</h1>
@@ -220,18 +189,9 @@
       <button id="processFilesBtn" onclick="handleProcessFiles()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
         Process Files
       </button>
-      <button onclick="saveDebugLog()" class="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 mt-2">
-        Save Debug Log
-      </button>
     </div>
-    <h2 class="text-lg font-semibold mt-8">Debug Console</h2>
-    <div id="debugConsole" class="mt-2"></div>
-    <p class="text-sm text-gray-600 mt-4">
-      Note: If not logged in, these actions will be disabled.
-    </p>
-  </div>
-  <div id="processingOverlay">
-    <div>Processing... Please wait...</div>
+    <!-- Visible progress log area -->
+    <div id="progressLog"></div>
   </div>
 </body>
 </html>

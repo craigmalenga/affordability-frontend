@@ -24,16 +24,6 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
-    #notLoggedInWarning {
-      display: none;
-      margin-bottom: 1rem;
-      padding: 1rem;
-      background-color: #fef2f2;
-      color: #b91c1c;
-      border: 1px solid #f87171;
-      border-radius: 0.5rem;
-      text-align: left;
-    }
     #errorContainer, #bankWarningsDiv, #timerOverrideDiv {
       width: 100%;
     }
@@ -124,11 +114,51 @@
     }
   </style>
   <script>
-    // Debug logging function
+    /*************************************
+     * Unified Login Button & Session Check for RHS
+     *************************************/
+    async function updateLoginButton() {
+      try {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
+        const data = await resp.json();
+        const loginBtn = document.getElementById("loginBtn");
+        // Always keep the login button enabled.
+        if (data.logged_in) {
+          loginBtn.innerText = "Logged in";
+          loginBtn.classList.remove("bg-red-600");
+          loginBtn.classList.add("bg-green-600");
+        } else {
+          loginBtn.innerText = "Log in with Microsoft 365";
+          loginBtn.classList.remove("bg-green-600");
+          loginBtn.classList.add("bg-red-600");
+        }
+      } catch (error) {
+        console.error("Error updating login button:", error);
+      }
+    }
+    function checkSession() {
+      fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: 'include' })
+        .then(resp => resp.json())
+        .then(data => {
+          const fetchDataBtn = document.getElementById("fetchDataBtn");
+          if (!data.logged_in) {
+            fetchDataBtn.disabled = true;
+            fetchDataBtn.style.backgroundColor = "red";
+          } else {
+            fetchDataBtn.disabled = false;
+            fetchDataBtn.style.backgroundColor = "blue";
+          }
+          updateLoginButton();
+        })
+        .catch(err => { console.error("Error checking session status:", err); });
+    }
+    /*************************************
+     * (Below here, all other functions remain unchanged from your old RHS code)
+     * Debug Logging, Processing Modal, PDF capture, timer, saving data, fetching FLG data, submission, etc.
+     *************************************/
     function debugLog(msg) {
       console.debug(msg);
     }
-    // Processing modal functions
     function showProcessing() {
       const overlay = document.getElementById("alertOverlay");
       const alertBox = document.getElementById("alertBox");
@@ -147,7 +177,38 @@
       alertBox.style.display = "none";
       alertButton.style.display = "block";
     }
-    // Improved PDF capture using jsPDF.html
+    function captureScreenshotPDF() {
+      debugLog("DEBUG: Starting screenshot capture using html2canvas with improved scale.");
+      const content = document.getElementById("pdfContent");
+      return html2canvas(content, {
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+        useCORS: true,
+        scale: 3
+      }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        debugLog("DEBUG: Screenshot captured, converting to multi-page PDF.");
+        const { jsPDF } = window.jspdf;
+        let pdf = new jsPDF('p', 'pt', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pdfHeight;
+        }
+        debugLog("DEBUG: Multi-page PDF generated successfully.");
+        return pdf.output('blob');
+      });
+    }
     function capturePDFwithJSPDFHTML() {
       debugLog("DEBUG: Starting improved PDF capture (just analysis & categorisations)");
       return new Promise((resolve, reject) => {
@@ -950,15 +1011,18 @@
       fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: 'include' })
         .then(resp => resp.json())
         .then(data => {
+          const loginBtn = document.getElementById("loginBtn");
           const fetchDataBtn = document.getElementById("fetchDataBtn");
-          if (!data.logged_in) {
-            document.getElementById("notLoggedInWarning").style.display = "block";
-            fetchDataBtn.disabled = true;
-            fetchDataBtn.title = "Please return to the Main Menu to log in.";
-          } else {
+          if (data.logged_in) {
+            loginBtn.innerText = "Logged in with Microsoft 365";
+            loginBtn.className = "bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700";
             fetchDataBtn.disabled = false;
             fetchDataBtn.style.backgroundColor = "blue";
-            fetchDataBtn.title = "";
+          } else {
+            loginBtn.innerText = "Log in with Microsoft 365";
+            loginBtn.className = "bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700";
+            fetchDataBtn.disabled = true;
+            fetchDataBtn.style.backgroundColor = "red";
           }
         })
         .catch(err => { console.error("Error checking session status:", err); });
@@ -977,24 +1041,29 @@
     <button id="alertButton" onclick="closeAlert()">OK</button>
   </div>
   
-  <!-- Main Content -->
+  <!-- Wrap all content in #pdfContent for full capture -->
   <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
+    <!-- Top bar -->
     <div class="flex justify-between items-center mb-4">
       <button id="returnMenuBtn"
               onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'"
               class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
         Return to Main Menu
       </button>
-      <button id="loginBtn" onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+      <button id="loginBtn"
+              onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
+              class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
         Log in with Microsoft 365
       </button>
     </div>
+    <!-- Logo and Title -->
     <div class="text-center mb-4">
       <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true"
            alt="Company Logo"
            class="h-16 mx-auto mb-2"/>
       <h1 class="text-2xl font-bold">Affordability Assessment</h1>
     </div>
+    <!-- Lead ID -->
     <label for="leadId" class="block mt-4 font-medium">Enter Lead ID:</label>
     <div class="flex gap-2 mt-2">
       <input type="text" id="leadId" placeholder="123456789" class="border p-2 flex-1 rounded-md text-gray-600"/>
@@ -1003,7 +1072,9 @@
         Fetch Data
       </button>
     </div>
+    <!-- Timer -->
     <div id="timerDisplay" class="mt-4 font-semibold">Timer: 0:00:00</div>
+    <!-- Lead Details -->
     <h2 class="text-lg font-semibold mt-6">Lead Details</h2>
     <label class="block mt-2">Full Name:</label>
     <input type="text" id="fullName" class="border p-2 w-full rounded-md bg-gray-200" readonly />
@@ -1011,24 +1082,31 @@
     <textarea id="bankNames" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     <label class="block mt-2">Period that Bank Statements cover:</label>
     <input type="text" id="periodCovered" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+    <!-- Hidden Paths to Relevant Bank Statements -->
     <div class="hidden">
       <label class="block mt-2">Paths to Relevant Bank Statements:</label>
       <textarea id="statement_urls" class="border p-2 w-full rounded-md bg-gray-200" rows="3" readonly></textarea>
     </div>
     <label class="block mt-2">Monthly Repayments being Assessed for Affordability:</label>
     <input type="number" id="monthlyRepayment" class="border p-2 w-full rounded-md bg-gray-200" readonly />
+    <!-- Bank Statements -->
     <h2 class="text-lg font-semibold mt-6">Bank Statements</h2>
     <div id="bankStatements" class="mt-2"></div>
+    <!-- Error Container for Warnings & Timer Override -->
     <div id="errorContainer"></div>
+    <!-- Statement Form (final summary and decision will be inserted here) -->
     <div id="statementForm"></div>
+    <!-- Process Data Button -->
     <button id="processDataBtn"
             class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 w-full"
             disabled
             onclick="processFinalData()">
       Process Data
     </button>
+    <!-- Debug Output Area -->
     <div id="debugOutput"></div>
   </div>
+  <!-- Processing Overlay (retained but can be hidden by default) -->
   <div id="processingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; text-align:center;">
     <div style="position:relative; top:40%; font-size:1.5rem; font-weight:bold; color:#333;">
       Processing your submission, please wait...
