@@ -15,7 +15,7 @@
       background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
       background-size: cover;
     }
-    /* Debug console hidden, progress log visible */
+    /* Progress log visible on screen */
     #progressLog {
       white-space: pre-line;
       background: #e0f7fa;
@@ -40,7 +40,7 @@
     }
   </style>
   <script defer>
-    // Unified login button status
+    // Unified login button update
     async function updateLoginButton() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -77,7 +77,7 @@
         console.error("Error checking session:", err);
       }
     }
-    // Log progress to both console and a visible log div.
+    // Log progress to both console and visible progress log div.
     function logProgress(msg) {
       console.log(msg);
       const progDiv = document.getElementById("progressLog");
@@ -86,7 +86,6 @@
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
     });
-    // File listing and processing functions remain similar to earlier.
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -139,8 +138,6 @@
           result.output.steps.forEach((step, idx) => {
             let msg = `Step ${idx + 1}: `;
             if (step.filename) msg += `File: ${step.filename}. `;
-            // For LHS, we expect the following keys:
-            // data8: S3 URL, data12: start date, data16: bank info
             if (step.data8) msg += `S3 URL: ${step.data8}. `;
             if (step.data12) msg += `Date: ${step.data12}. `;
             if (step.data16) msg += `Bank info: ${step.data16}. `;
