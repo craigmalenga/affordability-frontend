@@ -12,21 +12,28 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      /* Blue to pink gradient background */
       background: linear-gradient(to bottom right, #2E2F43 0%, #2E2F43 85%, #5D2C6D 100%);
       background-size: cover;
     }
-    #progressLog {
+    #progressLog, #failedLeads {
       white-space: pre-line;
-      background: #e0f7fa;
       padding: 1rem;
       border-radius: 0.5rem;
       max-height: 300px;
       overflow-y: auto;
       font-size: 0.9rem;
-      color: #006064;
       margin-top: 1rem;
-      border: 1px solid #4dd0e1;
+      border: 1px solid;
+    }
+    #progressLog {
+      background: #e0f7fa;
+      color: #006064;
+      border-color: #4dd0e1;
+    }
+    #failedLeads {
+      background: #ffebee;
+      color: #b71c1c;
+      border-color: #f44336;
     }
     #notLoggedInWarning {
       display: none;
@@ -45,9 +52,37 @@
       width: 100px;
       height: auto;
     }
+    /* Updated styles for the text container */
+    #textContainer {
+      margin-top: 50px;  /* 50px from the top */
+      font-size: 1.2rem; /* Bigger font size */
+      color: #ffffff;
+      text-align: left;
+      padding-left: 20px;
+      max-width: 90%;
+      margin-bottom: 50px;
+    }
+    #textContainer h2 {
+      font-size: 2rem; /* Increased header font size */
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    #textContainer p {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+    #portalBox {
+      position: absolute;
+      bottom: 100px;
+      width: 90%;
+      margin-left: 5%;
+      background-color: white;
+      padding: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+    }
   </style>
   <script defer>
-    // Check session status and update login button.
     async function updateLoginButton() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -74,14 +109,10 @@
         if (!data.logged_in) {
           document.getElementById("notLoggedInWarning").style.display = "block";
           document.getElementById("listFilesBtn").disabled = true;
-          document.getElementById("extractBtn").disabled = true;
-          document.getElementById("flgBtn").disabled = true;
           document.getElementById("filesBtn").disabled = true;
         } else {
           document.getElementById("notLoggedInWarning").style.display = "none";
           document.getElementById("listFilesBtn").disabled = false;
-          document.getElementById("extractBtn").disabled = false;
-          document.getElementById("flgBtn").disabled = false;
           document.getElementById("filesBtn").disabled = false;
         }
         updateLoginButton();
@@ -96,11 +127,16 @@
       progDiv.innerText += msg + "\n";
     }
 
+    function logFailed(msg) {
+      console.error(msg);
+      const failedDiv = document.getElementById("failedLeads");
+      failedDiv.innerText += msg + "\n";
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
     });
 
-    // "List Files" button functionality
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -119,18 +155,8 @@
         const data = await response.json();
         if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
 
-        // Display raw file names
-        const container = document.getElementById("filesContainer");
-        container.innerHTML = "";
-        data.value.forEach(file => {
-          const div = document.createElement("div");
-          div.className = "p-2 bg-gray-100 rounded my-1 text-left";
-          div.innerText = file.name;
-          container.appendChild(div);
-        });
+        renderFileList(data.value);
         logProgress(`Found ${data.value.length} file(s).`);
-
-        // Process filenames to generate aggregated FLG data fields per unique Lead ID.
         aggregateFLGData(data.value);
       } catch (error) {
         logProgress("Error listing files: " + error);
@@ -138,138 +164,109 @@
       }
     }
 
-    // Generate a random 9-digit number as a zero-padded string.
+    function renderFileList(files) {
+      const container = document.getElementById("filesContainer");
+      container.innerHTML = "";
+      files.forEach(file => {
+        const div = document.createElement("div");
+        div.className = "p-2 bg-gray-100 rounded my-1 text-left";
+        div.innerText = file.name;
+        container.appendChild(div);
+      });
+    }
+
     function generateRandom9Digit() {
       const num = Math.floor(1 + Math.random() * 999999999); // from 1 to 999999999
       return String(num).padStart(9, "0");
     }
 
-    // Base URL for S3 – adjust if needed.
     const S3_BASE_URL = "https://affordability-statememts.s3.eu-north-1.amazonaws.com/";
 
-    // Process filenames and aggregate FLG data fields per unique Lead ID.
-    // Expected filename format from SharePoint: <LeadID>-<Bank>-<AccountNumber>.pdf
-    // For S3 upload, we add a random 9-digit number:
-    // <LeadID>-<Bank>-<AccountNumber>-<random9digits>.pdf
-    // This final URL becomes the data8 field.
     function aggregateFLGData(files) {
-      const groups = {};
+      const groups = {};  // valid files grouped by LeadID
+      const failed = [];  // array of error messages
 
       files.forEach(file => {
-        // Remove ".pdf" extension (case-insensitive)
-        let filename = file.name;
+        let originalFilename = file.name;
+        let filename = originalFilename;
         if (filename.toLowerCase().endsWith(".pdf")) {
           filename = filename.slice(0, -4);
         }
         const parts = filename.split("-");
-        if (parts.length < 3) {
-          logProgress("Filename format invalid: " + file.name);
+        if (parts.length !== 4) {
+          failed.push(`File "${originalFilename}" not named according to format (expected 4 parts).`);
           return;
         }
         const leadId = parts[0];
         const bankName = parts[1];
-        const accountNumber = parts[2];
+        const datePart = parts[2];
+        const accountNumber = parts[3];
 
-        // Generate the random 9-digit string.
+        if (!/^[A-Za-z]{3}\d{4}$/.test(datePart)) {
+          failed.push(`File "${originalFilename}" has invalid date part "${datePart}" (expected format MmmYYYY).`);
+          return;
+        }
+
         const randomDigits = generateRandom9Digit();
-        // Build final S3 filename.
-        const finalS3Filename = `${leadId}-${bankName}-${accountNumber}-${randomDigits}.pdf`;
-        // Build the final S3 URL.
+        const finalS3Filename = `${leadId}-${bankName}-${datePart}-${accountNumber}-${randomDigits}.pdf`;
         const finalS3Url = `${S3_BASE_URL}${finalS3Filename}`;
 
-        // Initialize group for this leadId.
         if (!groups[leadId]) {
           groups[leadId] = {
-            data8: [],   // Will hold S3 URLs.
-            data12: [],  // For example, we store the bank name.
-            data16: []   // For example, we store the account number.
+            data8: [],
+            data12: datePart,
+            data16: []
           };
+        } else {
+          if (groups[leadId].data12 !== datePart) {
+            failed.push(`Inconsistent date for LeadID "${leadId}": "${groups[leadId].data12}" vs. "${datePart}".`);
+            delete groups[leadId];
+            return;
+          }
         }
         groups[leadId].data8.push(finalS3Url);
-        groups[leadId].data12.push(bankName);
-        groups[leadId].data16.push(accountNumber);
+        groups[leadId].data16.push(`${bankName}-${accountNumber}`);
       });
 
-      // Build aggregated data for each lead.
+      const extractedContainer = document.getElementById("extractedData");
+      extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Aggregated FLG Data Fields (Valid LeadIDs):</h3>";
       const aggregated = [];
       for (const leadId in groups) {
         aggregated.push({
           leadId: leadId,
           data8: groups[leadId].data8.join(","),
-          data12: groups[leadId].data12.join(","),
+          data12: groups[leadId].data12,
           data16: groups[leadId].data16.join(",")
         });
       }
-
-      // Display the aggregated FLG data.
-      const extractedContainer = document.getElementById("extractedData");
-      extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Aggregated FLG Data Fields:</h3>";
       aggregated.forEach(item => {
         const div = document.createElement("div");
         div.className = "p-2 bg-gray-200 rounded my-1 text-left";
         div.innerHTML = `<strong>Lead ID:</strong> ${item.leadId} <br/>
                          <strong>data8 (S3 URLs):</strong> ${item.data8} <br/>
-                         <strong>data12 (Bank Name(s)):</strong> ${item.data12} <br/>
-                         <strong>data16 (Account Number(s)):</strong> ${item.data16}`;
+                         <strong>data12 (Date):</strong> ${item.data12} <br/>
+                         <strong>data16 (Bank Info):</strong> ${item.data16}`;
         extractedContainer.appendChild(div);
       });
-      logProgress("Aggregated FLG data generated for " + aggregated.length + " unique Lead IDs.");
-    }
 
-    // Extraction of FLG data (triggered by the "Extract FLG Data" button)
-    async function extractFLGData() {
-      const folderLink = document.getElementById("folderLink").value.trim();
-      if (!folderLink) {
-        alert("Please paste your SharePoint folder link.");
-        return;
-      }
-      logProgress("Extracting FLG data from filenames in folder: " + folderLink);
-      try {
-        const resp = await fetch("https://web-production-15e92.up.railway.app/extract-flg-data", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ folderLink })
+      const failedContainer = document.getElementById("failedLeads");
+      failedContainer.innerHTML = "<h3 class='font-bold mb-2'>Failed Files / LeadIDs:</h3>";
+      if (failed.length === 0) {
+        failedContainer.innerHTML += "None.";
+      } else {
+        failed.forEach(msg => {
+          const div = document.createElement("div");
+          div.className = "p-2 bg-red-100 rounded my-1 text-left";
+          div.innerText = msg;
+          failedContainer.appendChild(div);
         });
-        const result = await resp.json();
-        if (!resp.ok) throw new Error(result.error || "Extraction failed.");
-        logProgress("Extraction complete. Planned FLG fields per Lead:");
-        logProgress(JSON.stringify(result, null, 2));
-      } catch (err) {
-        logProgress("Error extracting FLG data: " + err);
-        alert("Error extracting FLG data. See progress log for details.");
+      }
+      logProgress("Aggregated FLG data generated for " + aggregated.length + " valid Lead IDs.");
+      if (failed.length > 0) {
+        logProgress("Some files/LeadIDs failed processing. See failed list below.");
       }
     }
 
-    // Upload FLG fields to the FLG API.
-    async function uploadFLGFields() {
-      const leadId = document.getElementById("leadId").value.trim();
-      const data8 = document.getElementById("data8").value.trim();
-      const data12 = document.getElementById("data12").value.trim();
-      const data16 = document.getElementById("data16").value.trim();
-
-      if (!leadId || !data8 || !data12 || !data16) {
-        alert("Please enter Lead ID and all planned FLG field values.");
-        return;
-      }
-      logProgress("Uploading FLG fields for Lead " + leadId);
-      try {
-        const resp = await fetch("https://web-production-15e92.up.railway.app/upload-flg-fields", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ leadId, data8, data12, data16 })
-        });
-        const result = await resp.json();
-        if (!resp.ok) throw new Error(result.error || "FLG upload failed.");
-        logProgress("FLG upload result: " + JSON.stringify(result, null, 2));
-      } catch (err) {
-        logProgress("Error uploading FLG fields: " + err);
-        alert("Error uploading FLG fields. See progress log for details.");
-      }
-    }
-
-    // Upload files to AWS S3.
     async function uploadFilesToS3() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -292,14 +289,6 @@
         alert("Error uploading files. See progress log for details.");
       }
     }
-
-    function handleProcessFiles(action) {
-      if (action === "extract") {
-        extractFLGData();
-      } else {
-        console.log("Unknown action:", action);
-      }
-    }
   </script>
 </head>
 <body>
@@ -315,36 +304,33 @@
       </button>
     </div>
   </div>
-  <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
-    <div id="notLoggedInWarning">
-      <p><strong>Warning:</strong> You are not logged in to Microsoft 365. Please log in using the button above.</p>
-    </div>
-    <img src="https://github.com/craigmalenga/affordability-frontend/blob/main/logo.png?raw=true" alt="Company Logo" class="h-16 mx-auto mb-4" />
-    <h1 class="text-2xl font-bold mb-4">SharePoint to AWS Uploader</h1>
-    <div class="mb-4">
-      <label for="folderLink" class="block font-medium mb-2">Paste SharePoint Folder Link:</label>
-      <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
-    </div>
-    <div class="flex flex-col gap-4 items-center">
-      <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-        List Files (SharePoint)
-      </button>
-      <div id="filesContainer" class="mt-2 w-full"></div>
-      <button id="extractBtn" onclick="handleProcessFiles('extract')" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
-        Extract FLG Data from File Names
-      </button>
-      <button id="flgBtn" onclick="uploadFLGFields()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-        Upload Info to FLG
-      </button>
-      <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-        Upload Files to AWS S3
-      </button>
-    </div>
-    <!-- Container for progress log -->
-    <div id="progressLog"></div>
-    <!-- Container for aggregated FLG data fields -->
-    <div id="extractedData" class="mt-4 w-full"></div>
+
+  <!-- Text container with updated message -->
+  <div id="textContainer">
+    <h2>Our daily efforts truly make a difference.</h2>
+    <p>The data we process is more than just numbers—it embodies genuine impact on individuals in our community, especially those who may be most at risk.</p>
+    <p>Every piece of information you handle carries the trust of someone who depends on our support, helping to secure the fair outcomes our clients deserve.</p>
+    <p>Thank you for your commitment.</p>
   </div>
+
+  <div id="portalBox">
+    <h3 class="text-xl font-bold mb-4">Affordability Assessment Portal</h3>
+    <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+      List Files (SharePoint)
+    </button>
+    <div id="filesContainer" class="mt-2 w-full"></div>
+    <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+      Upload Files to AWS S3
+    </button>
+  </div>
+
+  <!-- Container for progress log -->
+  <div id="progressLog"></div>
+  <!-- Container for aggregated FLG data -->
+  <div id="extractedData" class="mt-4 w-full"></div>
+  <!-- Container for failed files/LeadIDs -->
+  <div id="failedLeads" class="mt-4 w-full"></div>
+  
   <!-- Fixed logo in bottom-right corner -->
   <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="fixed-bottom-right-logo" />
 </body>
