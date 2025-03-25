@@ -12,7 +12,6 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      /* Blue to pink gradient background */
       background: linear-gradient(to bottom right, #2E2F43 0%, #2E2F43 85%, #5D2C6D 100%);
       background-size: cover;
     }
@@ -26,7 +25,6 @@
       margin-top: 1rem;
       border: 1px solid;
     }
-    
     #progressLog {
       background: #e0f7fa;
       color: #006064;
@@ -56,7 +54,6 @@
     }
   </style>
   <script defer>
-    // Check session status and update login button.
     async function updateLoginButton() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -97,8 +94,8 @@
         logProgress("Error uploading files to LHS AWS S3: " + err);
         alert("Error uploading files. See progress log for details.");
       }
-    } 
-
+    }
+    
     async function uploadFilesToS3() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -120,16 +117,14 @@
           logProgress("Error uploading files to AWS S3: " + err);
           alert("Error uploading files. See progress log for details.");
       }
-
+      
       function logProgress(msg) {
         console.log(msg);
         const progDiv = document.getElementById("progressLog");
         progDiv.innerText += msg + "\n";
       }
-      
-
-  }
-  
+    }
+    
     async function checkSession() {
       try {
         const resp = await fetch("https://web-production-15e92.up.railway.app/session_status", { credentials: "include" });
@@ -150,24 +145,23 @@
         console.error("Error checking session:", err);
       }
     }
-
+    
     function logProgress(msg) {
       console.log(msg);
       const progDiv = document.getElementById("progressLog");
       progDiv.innerText += msg + "\n";
     }
-
+    
     function logFailed(msg) {
       console.error(msg);
       const failedDiv = document.getElementById("failedLeads");
       failedDiv.innerText += msg + "\n";
     }
-
+    
     window.addEventListener("DOMContentLoaded", () => {
       checkSession();
     });
-
-    // "List Files" button functionality
+    
     async function handleListFiles() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
@@ -185,21 +179,16 @@
         }
         const data = await response.json();
         if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
-
-        // Display raw file names
         renderFileList(data.value);
         logProgress(`Found ${data.value.length} file(s).`);
-
-        // Process filenames to generate aggregated FLG data fields per unique Lead ID.
         const aggregated = aggregateFLGData(data.value);
-        // Store aggregated data in a global variable for FLG update.
         window.aggregatedData = aggregated;
       } catch (error) {
         logProgress("Error listing files: " + error);
         alert("Error listing files. See progress log for details.");
       }
     }
-
+    
     function renderFileList(files) {
       const container = document.getElementById("filesContainer");
       container.innerHTML = "";
@@ -210,29 +199,19 @@
         container.appendChild(div);
       });
     }
-
-    // Generate a random 9-digit number as a zero-padded string.
+    
     function generateRandom9Digit() {
-      const num = Math.floor(1 + Math.random() * 999999999); // from 1 to 999999999
+      const num = Math.floor(1 + Math.random() * 999999999);
       return String(num).padStart(9, "0");
     }
-
-    // Base URL for S3 – adjust if needed.
+    
     const S3_BASE_URL = "https://affordability-statememts.s3.eu-north-1.amazonaws.com/";
-
-    // Process filenames and aggregate FLG data fields per unique Lead ID.
-    // Expected filename format: <LeadID>-<Bank>-<Account>-<Date>.pdf
-    // For S3 upload, we add a random 9-digit number:
-    // <LeadID>-<Bank>-<Account>-<Date>-<random9digits>.pdf
-    // data12: the Date (MmmYYYY) must be identical for all files of a LeadID;
-    // data16: comma-separated <Bank>-<Account> pairs.
+    
     function aggregateFLGData(files) {
-      const groups = {};  // valid files grouped by LeadID
-      const failed = [];  // array of error messages
-
+      const groups = {};
+      const failed = [];
       files.forEach(file => {
         let originalFilename = file.name;
-        // Remove ".pdf" extension (case-insensitive)
         let filename = originalFilename;
         if (filename.toLowerCase().endsWith(".pdf")) {
           filename = filename.slice(0, -4);
@@ -245,31 +224,23 @@
         const leadId = parts[0];
         const bankName = parts[1];
         const accountNumber = parts[2];
-        const datePart = parts[3];  // expected in MmmYYYY format
-
-        // Validate datePart with a regex (3 letters followed by 4 digits)
+        const datePart = parts[3];
         if (!/^[A-Za-z]{3}\d{4}$/.test(datePart)) {
           failed.push(`File "${originalFilename}" has invalid date part "${datePart}" (expected format MmmYYYY).`);
           return;
         }
-
-        // Build final S3 filename (append a random 9-digit number)
         const randomDigits = generateRandom9Digit();
         const finalS3Filename = `${leadId}-${bankName}-${accountNumber}-${datePart}-${randomDigits}.pdf`;
         const finalS3Url = `${S3_BASE_URL}${finalS3Filename}`;
-
-        // Initialize group for this leadId if not already created.
         if (!groups[leadId]) {
           groups[leadId] = {
-            data8: [],    // Will hold S3 URLs.
-            data12: datePart,  // Expected date for this lead.
-            data16: []    // Will hold bank-account pairs.
+            data8: [],
+            data12: datePart,
+            data16: []
           };
         } else {
-          // If the datePart for another file in the same lead differs, flag an error.
           if (groups[leadId].data12 !== datePart) {
             failed.push(`Inconsistent date for LeadID "${leadId}": "${groups[leadId].data12}" vs. "${datePart}".`);
-            // Remove group to prevent partial update.
             delete groups[leadId];
             return;
           }
@@ -277,8 +248,6 @@
         groups[leadId].data8.push(finalS3Url);
         groups[leadId].data16.push(`${bankName}-${accountNumber}`);
       });
-
-      // Build aggregated data array.
       const aggregated = [];
       for (const leadId in groups) {
         aggregated.push({
@@ -288,8 +257,6 @@
           data16: groups[leadId].data16.join(",")
         });
       }
-
-      // Display aggregated FLG data for valid LeadIDs.
       const extractedContainer = document.getElementById("extractedData");
       extractedContainer.innerHTML = "<h3 class='font-bold mb-2'>Aggregated FLG Data Fields (Valid LeadIDs):</h3>";
       aggregated.forEach(item => {
@@ -301,8 +268,6 @@
                          <strong>data16 (Bank Info):</strong> ${item.data16}`;
         extractedContainer.appendChild(div);
       });
-
-      // Display failed files/LeadIDs with error reasons.
       const failedContainer = document.getElementById("failedLeads");
       failedContainer.innerHTML = "<h3 class='font-bold mb-2'>Failed Files / LeadIDs:</h3>";
       if (failed.length === 0) {
@@ -321,32 +286,7 @@
       }
       return aggregated;
     }
-
-    // Upload files to AWS S3.
-    async function uploadFilesToS3() {
-      const folderLink = document.getElementById("folderLink").value.trim();
-      if (!folderLink) {
-        alert("Please paste your SharePoint folder link.");
-        return;
-      }
-      logProgress("Uploading files to AWS S3 from folder: " + folderLink);
-      try {
-        const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ folderLink })
-        });
-        const result = await resp.json();
-        if (!resp.ok) throw new Error(result.error || "S3 upload failed.");
-        logProgress("S3 upload result: " + JSON.stringify(result, null, 2));
-      } catch (err) {
-        logProgress("Error uploading files to AWS S3: " + err);
-        alert("Error uploading files. See progress log for details.");
-      }
-    }
-
-    // New function to upload data to FLG.
+    
     async function uploadFLGData() {
       if (!window.aggregatedData || window.aggregatedData.length === 0) {
         alert("No aggregated data available for FLG update.");
@@ -379,7 +319,6 @@
   </script>
 </head>
 <body>
-  <!-- Top bar with unified login button -->
   <div class="w-full" style="background-color: #D12472;">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center">
@@ -401,31 +340,22 @@
       <label for="folderLink" class="block font-medium mb-2">Paste SharePoint Folder Link:</label>
       <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
     </div>
-
-
     <div class="flex flex-col gap-4 items-center">
       <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
         List Files (SharePoint)
       </button>
       <div id="filesContainer" class="mt-2 w-full"></div>
-      
       <button id="filesBtnLHS" onclick="uploadFilesToS3LHS()" class="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700">
         Upload Files to AWS S3 (LHS)
       </button>
-
       <button id="flgUpdateBtn" onclick="uploadFLGData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
         Upload data to FLG
       </button>
     </div>
-    
-    <!-- Container for progress log -->
     <div id="progressLog"></div>
-    <!-- Container for aggregated FLG data -->
     <div id="extractedData" class="mt-4 w-full"></div>
-    <!-- Container for failed files/LeadIDs -->
     <div id="failedLeads" class="mt-4 w-full"></div>
   </div>
-  <!-- Fixed logo in bottom-right corner -->
   <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="fixed-bottom-right-logo" />
 </body>
 </html>
