@@ -122,7 +122,9 @@
       logProgress("Starting file processing...");
       const folderLink = document.getElementById("folderLink").value.trim();
       logProgress("Processing folder: " + folderLink);
+    
       try {
+        logProgress("Initiating upload to backend...");
         const resp = await fetch("https://web-production-15e92.up.railway.app/trigger-statement-upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -131,15 +133,17 @@
         });
         const result = await resp.json();
         if (!resp.ok) throw new Error(result.error || "Upload failed.");
-        if (result.output && result.output.steps) {
+    
+        // Log the detailed processing steps returned from backend.
+        if (result.steps && Array.isArray(result.steps)) {
           logProgress("Processing steps:");
-          result.output.steps.forEach((step, idx) => {
+          result.steps.forEach((step, idx) => {
             let msg = `Step ${idx + 1}: `;
             if (step.filename) msg += `File: ${step.filename}. `;
-            if (step.data8) msg += `S3 URL: ${step.data8}. `;
-            if (step.data12) msg += `Date: ${step.data12}. `;
-            if (step.data16) msg += `Bank info: ${step.data16}. `;
-            if (step.detail) msg += `Detail: ${step.detail}`;
+            if (step.data8) msg += `S3 URL (data8): ${step.data8}. `;
+            if (step.data12) msg += `Date (data12): ${step.data12}. `;
+            if (step.data16) msg += `Bank info (data16): ${step.data16}. `;
+            if (step.flgResponse) msg += `FLG Response: ${step.flgResponse}. `;
             logProgress(msg);
           });
         } else {
@@ -151,6 +155,7 @@
         alert("Error processing files. See progress log for details.");
       }
     }
+    
   </script>
 </head>
 <body>
