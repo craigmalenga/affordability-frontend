@@ -276,7 +276,7 @@
       }
       logProgress("Uploading files to AWS S3 from folder: " + folderLink);
       try {
-        const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3", {
+        const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3-lhs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
