@@ -614,25 +614,42 @@
     /*************************************
      * Override Check Functions
      *************************************/
+
     function checkAllOverrides() {
-      const bankOverridesOk = (overrides.length === statements.length && overrides.every(val => val));
-      const allOk = bankOverridesOk && timerOverrideAcknowledged;
-      updateBankOverrideMessage();
+      // if there is no bank‐warning box, we don’t require any checkbox there
+      const warningBox = document.getElementById("bankWarningsDiv");
+      const bankOverridesOk = !warningBox ||
+        (overrides.length === statements.length && overrides.every(v => v));
+
+      // same for timer override: if no timer box, it’s auto‐OK
+      const timerBox = document.getElementById("timerOverrideDiv");
+      const timerOk = !timerBox || timerOverrideAcknowledged;
+
+      const allOk = bankOverridesOk && timerOk;
+      updateBankOverrideMessage(); // only does something if warnings exist
+
+      // update your Process Data button
       const processBtn = document.getElementById("processDataBtn");
       processBtn.disabled = !allOk;
       processBtn.style.backgroundColor = allOk ? "green" : "red";
+
+      // now gate the final Submit Decision button
       const finalSubmitBtn = document.getElementById("finalSubmitBtn");
       if (finalSubmitBtn) {
         const decisionOptions = document.getElementsByName("decisionOption");
-        let selected = "";
-        for (let opt of decisionOptions) {
-          if (opt.checked) { selected = opt.value; break; }
-        }
+        const selected = Array.from(decisionOptions).find(o => o.checked)?.value || "";
         const reviewComment = document.getElementById("reviewComment");
         const commentVal = reviewComment ? reviewComment.value.trim() : "";
-        finalSubmitBtn.disabled = (!allOk || selected === "" || (selected === "review" && !commentVal));
+        finalSubmitBtn.disabled =
+          !allOk ||
+          selected === "" ||
+          (selected === "review" && !commentVal);
       }
     }
+
+
+
+
     function renderOverrideCheckboxes() {
       overrides = new Array(statements.length).fill(false);
       statements.forEach((_, idx) => {
