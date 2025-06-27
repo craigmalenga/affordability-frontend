@@ -16,6 +16,9 @@ function updateStatusField(leadId, leadgroup, statusValue) {
   })
   .then(res => res.json())
   .then(respData => {
+    
+    console.log("✅ [FLG UPDATE] response:", respData);
+    
     if (respData.error) {
       console.error(`Error updating status for ${leadId} (group ${leadgroup}):`, respData.error);
       throw new Error(respData.error);
@@ -34,6 +37,9 @@ function fetchFLGData(leadId) {
   })
   .then(res => res.json())
   .then(data => {
+    
+    console.log("✅ [FLG FETCH] data1 response:", data);
+
     if (data.error) throw new Error(data.error);
     return data;
   });
