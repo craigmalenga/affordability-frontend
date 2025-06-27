@@ -101,7 +101,7 @@ async function uploadFiles() {
   }
 
   try {
-    // 3) Send the selected folder path to your backend for processing
+    // 1) Send the selected folder path to your backend for processing
     const response = await fetch("https://web-production-15e92-up.railway.app/process-files", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -112,29 +112,32 @@ async function uploadFiles() {
       throw new Error(JSON.stringify(err));
     }
 
-    // show the raw result
+    // 2) Show the raw result
     const result = await response.json();
     document.getElementById("result").innerHTML =
       `<pre>${JSON.stringify(result, null, 2)}</pre>`;
 
-    // 4) Immediately after processing, run the status‐update cascade:
-    const { leadId, autoDecision } = result;
+    // 3) Destructure everything you need from the result
+    const { leadId, autoDecision, data6, data7, data9 } = result;
     console.log("▶️ Starting cascade status update for:", leadId, "decision:", autoDecision);
 
-    // decide pass vs fail
+    // 4) Decide pass vs fail
     const isPass = (autoDecision === "Affordability");
     const mainStatusText = isPass
       ? "Bank statements reviewed - submitted with claim"
       : "Source case closed";
 
-    // call your new cascade endpoint once
+    // 5) Call your cascade endpoint once, passing the old FLG fields + <Status>
     const cascadeRes = await fetch("/api/flg_update_cascade", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         leadId: leadId,
-        status: mainStatusText
+        data6:   data6,      // your existing affordability‐input
+        data7:   data7,      // your existing affordability‐output
+        data9:   data9,      // your screenshot URL
+        status:  mainStatusText
       })
     });
     const cascadeData = await cascadeRes.json();
@@ -145,7 +148,7 @@ async function uploadFiles() {
       throw new Error(cascadeData.error);
     }
 
-    // final user alert
+    // 6) Final user alert
     alert("Confirmation – all information has been processed and status updates are in progress.");
   } catch (error) {
     console.error("Upload or processing failed:", error);
