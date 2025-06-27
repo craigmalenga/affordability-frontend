@@ -1038,11 +1038,11 @@
           headers: { "Content-Type": "application/json" },
 
           body: JSON.stringify({
-            leadId:      leadId,
-            data6:       data6,
-            data7:       data7,
-            data9:       screenshotUrl,
-            status:      status    // ← colon, not semicolon
+            leadId,            // shorthand for leadId: leadId
+            data6,             // shorthand for data6: data6
+            data7,             // shorthand for data7: data7
+            data9: screenshotUrl,
+            status             // ← now includes your new <Status> value
           })
 
         });
