@@ -35,7 +35,6 @@ function updateStatusField(leadId, leadgroup, statusValue) {
   });
 }
 
-
 // 2) Helper to fetch FLG data (to read data1)
 function fetchFLGData(leadId) {
   // Log which leadId we’re fetching
@@ -54,7 +53,6 @@ function fetchFLGData(leadId) {
     return data;
   });
 }
-
 
 async function selectFolder() {
   try {
@@ -94,6 +92,7 @@ function renderFileList(files) {
   });
 }
 
+// --- TWEAKED uploadFiles() to use your cascade endpoint ---
 async function uploadFiles() {
   const folderName = document.getElementById("folderPath").value;
   if (!folderName) {
@@ -118,35 +117,33 @@ async function uploadFiles() {
     document.getElementById("result").innerHTML =
       `<pre>${JSON.stringify(result, null, 2)}</pre>`;
 
-    // 4) Immediately after processing, run the status‐update sequence:
-    (async () => {
-      const { leadId, autoDecision } = result;
-      console.log("▶️ Starting status updates for:", leadId, "decision:", autoDecision);
+    // 4) Immediately after processing, run the status‐update cascade:
+    const { leadId, autoDecision } = result;
+    console.log("▶️ Starting cascade status update for:", leadId, "decision:", autoDecision);
 
-      // decide pass vs fail
-      const isPass = (autoDecision === "Affordability");
-      const mainStatusText = isPass
-        ? "Bank statements reviewed - submitted with claim"
-        : "Source case closed";
+    // decide pass vs fail
+    const isPass = (autoDecision === "Affordability");
+    const mainStatusText = isPass
+      ? "Bank statements reviewed - submitted with claim"
+      : "Source case closed";
 
-      // trigger cascade update on the backend
-      fetch("/api/flg_update_cascade", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          leadId: leadId,
-          status: mainStatusText
-        })
+    // call your new cascade endpoint once
+    const cascadeRes = await fetch("/api/flg_update_cascade", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        leadId: leadId,
+        status: mainStatusText
       })
-        .then(res => res.json())
-        .then(data => {
-          console.log("Cascade update response:", data);
-        })
-        .catch(err => {
-          console.error("Cascade update error:", err);
-        });
-    })();
+    });
+    const cascadeData = await cascadeRes.json();
+    console.log("✅ Cascade update response:", cascadeData);
+
+    if (cascadeData.error) {
+      console.error("❌ Cascade update error:", cascadeData.error);
+      throw new Error(cascadeData.error);
+    }
 
     // final user alert
     alert("Confirmation – all information has been processed and status updates are in progress.");
@@ -155,6 +152,5 @@ async function uploadFiles() {
     alert("Error: " + (error.message || "Process failed"));
   }
 }
-
 
 document.getElementById("uploadBtn").addEventListener("click", uploadFiles);
