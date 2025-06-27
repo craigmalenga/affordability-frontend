@@ -1026,16 +1026,25 @@
       .then(screenshotUrl => {
         debugLog("DEBUG: PDF uploaded to S3. Public URL: " + screenshotUrl);
         debugLog("DEBUG: Submitting data to FLG, including data9 with the screenshot URL...");
+        
+        // define status based on pass/fail
+        const status = finalDecision === "Affordability"
+          ? "Bank statements reviewed - submitted with claim"
+          : "Source case closed";        
+              
         return fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
+
           body: JSON.stringify({
-            "leadId": leadId,
-            "data6": data6,
-            "data7": data7,
-            "data9": screenshotUrl
+            leadId:      leadId,
+            data6:       data6,
+            data7:       data7,
+            data9:       screenshotUrl,
+            status:      status    // ← colon, not semicolon
           })
+
         });
       })
       .then(resp => {
