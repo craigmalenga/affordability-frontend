@@ -118,55 +118,6 @@
       console.debug(msg);
     }
 
-    // 1) Helper to update a single field for any lead/group
-    function updateStatusField(leadId, leadgroup, statusValue) {
-      console.log("🔄 [FLG UPDATE] sending:", {
-        leadId,
-        leadgroup,
-        field: "Status",
-        value: statusValue
-      });
-
-      return fetch("https://web-production-15e92-up.railway.app/api/flg_update", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          leadId: leadId,
-          leadgroup: leadgroup,
-          field: "Status",
-          value: statusValue
-        })
-      })
-      .then(res => res.json())
-      .then(respData => {
-        console.log("✅ [FLG UPDATE] response:", respData);
-        if (respData.error) {
-          console.error(
-            `❌ Error updating status for ${leadId} (group ${leadgroup}):`,
-            respData.error
-          );
-          throw new Error(respData.error);
-        }
-        return respData;
-      });
-    }
-
-    // 2) Helper to fetch FLG data (to read data1)
-    function fetchFLGData(leadId) {
-      console.log("🔍 [FLG FETCH] fetching data1 for leadId:", leadId);
-
-      return fetch(`https://web-production-15e92-up.railway.app/api/flg_data/${leadId}`, {
-        credentials: "include"
-      })
-      .then(res => res.json())
-      .then(data => {
-        console.log("✅ [FLG FETCH] data1 response:", data);
-        if (data.error) throw new Error(data.error);
-        return data;
-      });
-    }
-
     /*************************************
      * Show Processing Modal (Existing Alert Overlay)
      *************************************/
@@ -1101,34 +1052,6 @@
           finalSubmitted = true;
           showAlert("Confirmation - all information has successfully been submitted");
           debugLog("DEBUG: FLG update with screenshot succeeded. data9 should contain the URL now.");
-
-          // ----- Begin cascading Status updates -----
-          const isPass = (autoDecision === "Affordability");
-          const mainStatusText = isPass
-            ? "Bank statements reviewed - submitted with claim"
-            : "Source case closed";
-          const linkedStatusText = isPass
-            ? "Submit claim pending sign off"
-            : "Closed - Non Viable DSAR";
-
-          console.log(
-            "▶️ Starting status updates for leadId:", leadId,
-            "autoDecision:", autoDecision
-          );
-
-          updateStatusField(leadId, 61190, mainStatusText)
-            .then(() => fetchFLGData(leadId))
-            .then(data => {
-              const linkedLeadId = data.data1;
-              console.log("→ linkedLeadId:", linkedLeadId);
-              if (linkedLeadId) {
-                return updateStatusField(linkedLeadId, 59549, linkedStatusText);
-              }
-            })
-            .then(() => console.log("✅ Both main & linked Status updated"))
-            .catch(err => console.error("❌ Status update error:", err));
-            // ----- End status updates -----
-
         }
       })
       .catch(err => {
