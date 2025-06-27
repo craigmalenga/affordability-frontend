@@ -1,5 +1,8 @@
 // 1) Helper to update a single field for any lead/group
 function updateStatusField(leadId, leadgroup, statusValue) {
+  
+  console.log("🔄 [FLG UPDATE] sending:", { leadId, leadgroup, field: "Status", value: statusValue });
+
   return fetch("https://web-production-15e92-up.railway.app/api/flg_update", {
     method: "POST",
     credentials: "include",
@@ -23,6 +26,9 @@ function updateStatusField(leadId, leadgroup, statusValue) {
 
 // 2) Helper to fetch FLG data (to read data1)
 function fetchFLGData(leadId) {
+  
+  console.log("🔍 [FLG FETCH] fetching data1 for leadId:", leadId);
+  
   return fetch(`https://web-production-15e92-up.railway.app/api/flg_data/${leadId}`, {
     credentials: "include"
   })
@@ -98,7 +104,7 @@ async function uploadFiles() {
     // 4) Immediately after processing, run the status‐update sequence:
     (async () => {
       const { leadId, autoDecision } = result;
-      console.log("▶️ Running status updates for:", leadId, autoDecision);
+      console.log("▶️ Starting status updates for:", leadId, "decision:", autoDecision);
 
       // decide pass vs fail
       const isPass = (autoDecision === "Affordability");
