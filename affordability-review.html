@@ -959,122 +959,136 @@
     * - Shows a “Processing...” overlay before starting.
     * - Hides the overlay after submission (or if an error occurs).
     *************************************/
-
-    /*************************************
-     * FINAL SUBMIT DECISION with Secure S3 Upload
-     *************************************/
     function finalSubmitDecision() {
-      // show overlay
+      // show spinner
       document.getElementById("processingOverlay").style.display = "block";
 
-      // figure out which radio is checked
+      // 1) figure out which radio the user picked
       const decisionOptions = document.getElementsByName("decisionOption");
-      let selected = Array.from(decisionOptions).find(o => o.checked)?.value || "";
+      let selected = "";
+      for (let opt of decisionOptions) {
+        if (opt.checked) { selected = opt.value; break; }
+      }
 
-      // grab the auto-decision text
+      // 2) grab the auto-decision text from the box
       const decBox = document.querySelector(".decision-box h3");
       if (!decBox) {
         document.getElementById("processingOverlay").style.display = "none";
         showAlert("No decision box found. Did you process data first?");
         return;
       }
+      // e.g. "Decision: Affordability"
       const autoDecision = decBox.innerText.split(":")[1].trim();
-      const autoReason  = document.querySelector(".decision-box p")?.innerText.trim() || "";
 
-      // build finalDecision / finalReason
+      // 3) build your finalDecision string
       let finalDecision, finalReason;
       if (selected === "default") {
         finalDecision = autoDecision;
-        finalReason   = autoReason;
-      } else {  // "review"
-        let comment = document.getElementById("reviewComment").value.trim().replace(/,/g,"");
+        finalReason   = document.querySelector(".decision-box p")?.innerText.trim() || "";
+      } else {
+        const comment = document.getElementById("reviewComment").value.trim().replace(/,/g, "");
         finalDecision = "Revisit - " + comment;
         finalReason   = "";
       }
 
-      // recalc all your averages + data6/data7 as before…
-      const nBanks  = statements.length;
+      // 4) recalc all your averages etc. (no change here)
+      const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
-      let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
+      let totalIncome=0, totalExpenses=0, totalGambling=0;
       statements.forEach(st => {
-        for (let m = 0; m < nMonths; m++) {
-          totalIncome   += (st.data[`0_${m}`] || 0);
-          let exp = 0;
-          for (let r = 1; r <= 4; r++) exp += (st.data[`${r}_${m}`] || 0);
-          totalExpenses += exp;
-          totalGambling += (st.data[`5_${m}`] || 0);
+        for (let m=0; m<nMonths; m++) {
+          totalIncome   += st.data[`0_${m}`] || 0;
+          let e = 0;
+          for (let r=1; r<=4; r++) e += st.data[`${r}_${m}`]||0;
+          totalExpenses += e;
+          totalGambling += st.data[`5_${m}`]||0;
         }
       });
-      const avgIncome     = nBanks && nMonths ? totalIncome/(nBanks*nMonths) : 0;
-      const avgExpenses   = nBanks && nMonths ? totalExpenses/(nBanks*nMonths) : 0;
-      const avgGambling   = nBanks && nMonths ? totalGambling/(nBanks*nMonths) : 0;
-      const avgDisposable = avgIncome - avgExpenses + avgGambling;
-      const safeIncome    = avgIncome > 0 ? avgIncome : 0;
-      const safeDisp      = avgDisposable > 0 ? avgDisposable : 0;
-      const monthlyRepay  = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
-      const gambPctInc    = safeIncome    ? (avgGambling/safeIncome)*100    : 0;
-      const gambPctDisp   = safeDisp      ? (avgGambling/safeDisp)*100      : 0;
-      const loanRepayPct  = safeDisp      ? (monthlyRepay/safeDisp)*100     : 0;
-
-      // timing
+      const avgIncome    = nBanks*nMonths>0 ? totalIncome/(nBanks*nMonths) : 0;
+      const avgExpenses  = nBanks*nMonths>0 ? totalExpenses/(nBanks*nMonths) : 0;
+      const avgGambling  = nBanks*nMonths>0 ? totalGambling/(nBanks*nMonths) : 0;
+      const avgDisposable= avgIncome - avgExpenses + avgGambling;
+      const safeDisposable = avgDisposable>0 ? avgDisposable : 0;
+      const safeIncome     = avgIncome>0 ? avgIncome : 0;
+      const monthlyRepayment = parseFloat(document.getElementById("monthlyRepayment").value) || 0;
+      const gambPctIncome     = safeIncome>0 ? (avgGambling/safeIncome)*100 : 0;
+      const gambPctDisposable = safeDisposable>0 ? (avgGambling/safeDisposable)*100 : 0;
+      const loanRepayPct      = safeDisposable>0 ? (monthlyRepayment/safeDisposable)*100 : 0;
       const finalSec = stopTimer();
-      const finalMin = finalSec / 60;
+      const finalMin = finalSec/60;
 
-      // build data6/data7
+      // 5) build data6 + data7 (no change)
       const data6 = buildAffordabilityInput();
       const data7 = buildAffordabilityOutput(
         avgIncome, avgExpenses, avgGambling, avgDisposable,
-        gambPctInc, gambPctDisp, loanRepayPct,
+        gambPctIncome, gambPctDisposable, loanRepayPct,
         finalDecision, finalReason, finalMin
       );
 
       const leadId = document.getElementById("leadId").value.trim();
-      debugLog("DEBUG: Final submit for Lead " + leadId);
 
-      capturePDFwithJSPDFHTML()
-      .then(pdfBlob => {
-        const filename = generateFilename(leadId);
-        return uploadScreenshotSecure(pdfBlob, filename);
-      })
-      .then(screenshotUrl => {
-        debugLog("DEBUG: Uploaded PDF to S3 → " + screenshotUrl);
+      // 6) decide the FLG <Status> for the MAIN lead
+      const status = (finalDecision === "Affordability")
+        ? "Bank statements reviewed - submitted with claim"
+        : "Source case closed";
 
-        // ** map to your FLG <Status> **
-        const status = (finalDecision === "Affordability")
-          ? "Bank statements reviewed - submitted with claim"
-          : "Source case closed";
-
-        // ** POST to your old /api/flg_update endpoint **
-        return fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
-          method:      "POST",
-          credentials: "include",
-          headers:     { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            leadId: leadId,
-            data6:   data6,
-            data7:   data7,
-            data9:   screenshotUrl,
-            status:  status
-          })
-        });
-      })
-      .then(resp => resp.json().then(json => ({ status: resp.status, body: json })))
-      .then(({ status, body }) => {
-        document.getElementById("processingOverlay").style.display = "none";
-        debugLog("DEBUG: FLG update returned", status, body);
-        if (body.error) {
-          showAlert("Error updating FLG with screenshot: " + body.error);
-        } else {
-          finalSubmitted = true;
-          showAlert("Confirmation – all information has successfully been submitted");
-        }
-      })
-      .catch(err => {
-        document.getElementById("processingOverlay").style.display = "none";
-        console.error("Error in finalSubmitDecision:", err);
-        showAlert("PDF generation or upload failed. Please try again.");
+      // --- DEBUGGING: dump the outgoing payload so you can verify in console
+      console.log("⏳ POST /api/flg_update payload:", {
+        leadId,
+        data6,
+        data7,
+        data9: null,   // placeholder, will be filled next
+        status
       });
+
+      // 7) capture screenshot → filename → upload → get URL
+      capturePDFwithJSPDFHTML()
+        .then(pdfBlob => {
+          const filename = generateFilename(leadId);
+          return uploadScreenshotSecure(pdfBlob, filename);
+        })
+        .then(screenshotUrl => {
+          // now actually send the POST
+          console.log("✅ got screenshotUrl:", screenshotUrl);
+          const payload = {
+            leadId,
+            data6,
+            data7,
+            data9: screenshotUrl,
+            status
+          };
+          console.log("⏳ final payload:", payload);
+
+          return fetch("https://web-production-15e92.up.railway.app/api/flg_update", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        })
+        .then(resp => {
+          console.log("📬 flg_update response status:", resp.status);
+          return resp.json();
+        })
+        .then(respData => {
+          document.getElementById("processingOverlay").style.display = "none";
+          console.log("📬 flg_update response JSON:", respData);
+          if (respData.error) {
+            showAlert("Error updating FLG with screenshot: " + respData.error);
+          } else {
+            finalSubmitted = true;
+            showAlert("Confirmation — all information has successfully been submitted");
+          }
+        })
+        .catch(err => {
+          console.error("❌ Error in finalSubmitDecision:", err);
+          document.getElementById("processingOverlay").style.display = "none";
+          showAlert("PDF generation or upload failed. Please try again.");
+        });
     }
+    
+
+
 
     /*************************************
      * Session Check
