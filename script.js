@@ -43,7 +43,6 @@ async function selectFolder() {
 }
 
 document.getElementById("loginBtn").addEventListener("click", () => {
-  // Replace with your backend login URL
   window.location.href = "https://web-production-15e92-up.railway.app/login";
 });
 
@@ -74,7 +73,6 @@ function renderFileList(files) {
 
 async function uploadFiles() {
   const folderName = document.getElementById("folderPath").value;
-
   if (!folderName) {
     alert("Please select a folder.");
     return;
@@ -92,34 +90,53 @@ async function uploadFiles() {
       throw new Error(JSON.stringify(err));
     }
 
+    // show the raw result
     const result = await response.json();
-    document.getElementById("result").innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+    document.getElementById("result").innerHTML =
+      `<pre>${JSON.stringify(result, null, 2)}</pre>`;
 
-    // 4) After processing, chain the FLG status updates
-    const { leadId, autoDecision } = result;  // assuming your backend returns these
-    const primaryDecision = autoDecision === "Affordability";
-    const statusMain = primaryDecision
-      ? "Bank statements reviewed - submitted with claim"
-      : "Source case closed";
+    // 4) Immediately after processing, run the status‐update sequence:
+    (async () => {
+      const { leadId, autoDecision } = result;
+      console.log("▶️ Running status updates for:", leadId, autoDecision);
 
-    // Update status on the main lead (leadgroup 61190)
-    await updateStatusField(leadId, 61190, statusMain);
+      // decide pass vs fail
+      const isPass = (autoDecision === "Affordability");
+      const mainStatusText = isPass
+        ? "Bank statements reviewed - submitted with claim"
+        : "Source case closed";
+      const linkedStatusText = isPass
+        ? "Submit claim pending sign off"
+        : "Closed - Non Viable DSAR";
 
-    // Fetch to get linked Lead ID from data1
-    const data = await fetchFLGData(leadId);
-    const linkedLeadId = data.data1;
-    if (!linkedLeadId) throw new Error("No linked Lead ID found in data1");
+      try {
+        // update the main lead (group 61190)
+        console.log("→ updating main:", mainStatusText);
+        await updateStatusField(leadId, 61190, mainStatusText);
 
-    // Determine linked-status text and update it (leadgroup 59549)
-    const statusLinked = primaryDecision
-      ? "Submit claim pending sign off"
-      : "Closed - Non Viable DSAR";
-    await updateStatusField(linkedLeadId, 59549, statusLinked);
+        // fetch its data1 for the linked lead ID
+        const flgData = await fetchFLGData(leadId);
+        const linkedLeadId = flgData.data1;
+        console.log("→ got linkedLeadId:", linkedLeadId);
+        if (!linkedLeadId) {
+          console.warn("No linked Lead ID found in data1, skipping linked update.");
+          return;
+        }
 
-    // Final confirmation
-    alert("Confirmation – all information and statuses have been updated successfully");
+        // update the linked lead (group 59549)
+        console.log("→ updating linked:", linkedStatusText);
+        await updateStatusField(linkedLeadId, 59549, linkedStatusText);
+
+        console.log("✅ Both statuses updated successfully");
+      } catch (err) {
+        console.error("❌ Error during status updates:", err);
+      }
+    })();
+
+    // final user alert
+    alert("Confirmation – all information has been processed and status updates are in progress.");
   } catch (error) {
-    console.error("Upload or status update failed:", error);
+    console.error("Upload or processing failed:", error);
     alert("Error: " + (error.message || "Process failed"));
   }
 }
