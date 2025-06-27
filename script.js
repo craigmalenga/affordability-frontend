@@ -128,32 +128,24 @@ async function uploadFiles() {
       const mainStatusText = isPass
         ? "Bank statements reviewed - submitted with claim"
         : "Source case closed";
-      const linkedStatusText = isPass
-        ? "Submit claim pending sign off"
-        : "Closed - Non Viable DSAR";
 
-      try {
-        // update the main lead (group 61190)
-        console.log("→ updating main:", mainStatusText);
-        await updateStatusField(leadId, 61190, mainStatusText);
-
-        // fetch its data1 for the linked lead ID
-        const flgData = await fetchFLGData(leadId);
-        const linkedLeadId = flgData.data1;
-        console.log("→ got linkedLeadId:", linkedLeadId);
-        if (!linkedLeadId) {
-          console.warn("No linked Lead ID found in data1, skipping linked update.");
-          return;
-        }
-
-        // update the linked lead (group 59549)
-        console.log("→ updating linked:", linkedStatusText);
-        await updateStatusField(linkedLeadId, 59549, linkedStatusText);
-
-        console.log("✅ Both statuses updated successfully");
-      } catch (err) {
-        console.error("❌ Error during status updates:", err);
-      }
+      // trigger cascade update on the backend
+      fetch("/api/flg_update_cascade", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId: leadId,
+          status: mainStatusText
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log("Cascade update response:", data);
+        })
+        .catch(err => {
+          console.error("Cascade update error:", err);
+        });
     })();
 
     // final user alert
@@ -163,5 +155,6 @@ async function uploadFiles() {
     alert("Error: " + (error.message || "Process failed"));
   }
 }
+
 
 document.getElementById("uploadBtn").addEventListener("click", uploadFiles);
