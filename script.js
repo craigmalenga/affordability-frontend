@@ -1,7 +1,12 @@
 // 1) Helper to update a single field for any lead/group
 function updateStatusField(leadId, leadgroup, statusValue) {
-  
-  console.log("🔄 [FLG UPDATE] sending:", { leadId, leadgroup, field: "Status", value: statusValue });
+  // Log the outgoing payload
+  console.log("🔄 [FLG UPDATE] sending:", {
+    leadId,
+    leadgroup,
+    field: "Status",
+    value: statusValue
+  });
 
   return fetch("https://web-production-15e92-up.railway.app/api/flg_update", {
     method: "POST",
@@ -16,34 +21,40 @@ function updateStatusField(leadId, leadgroup, statusValue) {
   })
   .then(res => res.json())
   .then(respData => {
-    
+    // Log the FLG response
     console.log("✅ [FLG UPDATE] response:", respData);
-    
+
     if (respData.error) {
-      console.error(`Error updating status for ${leadId} (group ${leadgroup}):`, respData.error);
+      console.error(
+        `❌ Error updating status for ${leadId} (group ${leadgroup}):`,
+        respData.error
+      );
       throw new Error(respData.error);
     }
     return respData;
   });
 }
 
+
 // 2) Helper to fetch FLG data (to read data1)
 function fetchFLGData(leadId) {
-  
+  // Log which leadId we’re fetching
   console.log("🔍 [FLG FETCH] fetching data1 for leadId:", leadId);
-  
-  return fetch(`https://web-production-15e92-up.railway.app/api/flg_data/${leadId}`, {
-    credentials: "include"
-  })
+
+  return fetch(
+    `https://web-production-15e92-up.railway.app/api/flg_data/${leadId}`,
+    { credentials: "include" }
+  )
   .then(res => res.json())
   .then(data => {
-    
+    // Log the returned record
     console.log("✅ [FLG FETCH] data1 response:", data);
 
     if (data.error) throw new Error(data.error);
     return data;
   });
 }
+
 
 async function selectFolder() {
   try {
