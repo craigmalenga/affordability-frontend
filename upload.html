@@ -360,18 +360,25 @@
       <label for="folderLink" class="block font-medium mb-2">Paste SharePoint Folder Link:</label>
       <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
     </div>
+
     <div class="flex flex-col gap-4 items-center">
-      <button id="listFilesBtn" onclick="handleListFiles()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-        List Files (SharePoint)
-      </button>
+      <button id="listFilesBtn" …>List Files (SharePoint)</button>
       <div id="filesContainer" class="mt-2 w-full"></div>
-      <button id="filesBtn" onclick="uploadFilesToS3()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-        Upload Files to AWS S3
-      </button>
-      <button id="flgUpdateBtn" onclick="uploadFLGData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-        Upload data to FLG
-      </button>
+      <button id="filesBtn" …>Upload Files to AWS S3</button>
+
+      <!-- Decision / Status chooser -->
+      <div class="mb-4">
+        <label class="block font-semibold mb-1">Decision / Status:</label>
+        <label><input type="radio" name="status" value="Pending review" checked> Pending review</label>
+        <label><input type="radio" name="status" value="Bank statements reviewed - submitted with claim"> Reviewed &amp; submitted</label>
+        <label><input type="radio" name="status" value="Closed - Non Viable DSAR"> Closed - Non Viable</label>
+      </div>
+
+      <button id="flgUpdateBtn" …>Upload data to FLG</button>
     </div>
+
+    
+
     <!-- Container for progress log -->
     <div id="progressLog"></div>
     <!-- Container for aggregated FLG data -->
