@@ -820,14 +820,35 @@
       renderTimerOverrideBox(timePerBank);
       let decision = "";
       let reason = "";
-      if (gambPctIncome > 15) { decision = "Unaffordable"; reason = "Gambling exceeds 15% of income, indicating financial risk."; }
-      else if (gambPctIncome >= 10 && gambPctIncome <= 14 && loanRepayPct > 50) { decision = "Unaffordable"; reason = "Gambling between 10–14% and repayment exceeds 50% of disposable income."; }
-      else if (gambPctIncome < 10 && loanRepayPct > 65) { decision = "Unaffordable"; reason = "Gambling is below 10%, but repayment cost is over 65% of disposable income."; }
-      else { decision = "Affordability"; reason = "Neither gambling nor repayment costs indicate financial distress."; }
+
+      // Replace your existing decision logic with this:
+      if (avgIncome === 0) {
+        decision = "Unaffordable";
+        reason   = "No income recorded—cannot confirm affordability.";
+      }
+      else if (gambPctIncome > 15) {
+        decision = "Unaffordable";
+        reason   = "Gambling exceeds 15% of income, indicating financial risk.";
+      }
+      else if (gambPctIncome >= 10 && gambPctIncome <= 14 && loanRepayPct > 50) {
+        decision = "Unaffordable";
+        reason   = "Gambling between 10–14% and repayment exceeds 50% of disposable income.";
+      }
+      else if (gambPctIncome < 10 && loanRepayPct > 65) {
+        decision = "Unaffordable";
+        reason   = "Gambling is below 10%, but repayment cost is over 65% of disposable income.";
+      }
+      else {
+        decision = "Affordability";
+        reason   = "Neither gambling nor repayment costs indicate financial distress.";
+      }
+      
       let decisionHTML = `<div class="decision-box mt-4">
           <h3>Decision: ${decision}</h3>
           <p>${reason}</p>
         </div>`;
+
+
       const dispAvgIncome = `£${formatNumericValue(avgIncome)}`;
       const dispAvgExpenses = `£${formatNumericValue(avgExpenses)}`;
       const dispAvgGambling = `£${formatNumericValue(avgGambling)}`;
