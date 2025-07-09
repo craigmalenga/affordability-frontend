@@ -164,10 +164,14 @@
       });
     }
 
-    // Generate a random 9-digit number as a zero-padded string.
-    function generateRandom9Digit() {
-      const num = Math.floor(1 + Math.random() * 999999999); // from 1 to 999999999
-      return String(num).padStart(9, "0");
+    // Generate a date stamp in "ddMmmYYYY" format, e.g. "01Aug2025"
+    function generateDateStamp() {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, "0");
+      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const month = monthNames[now.getMonth()];
+      const year = now.getFullYear();
+      return `${day}${month}${year}`;
     }
 
     // Base URL for S3 – adjust if needed.
@@ -206,9 +210,11 @@
           return;
         }
 
-        // Build final S3 filename (append a random 9-digit number)
-        const randomDigits = generateRandom9Digit();
-        const finalS3Filename = `${leadId}-${bankName}-${accountNumber}-${datePart}-${randomDigits}.pdf`;
+
+        // Build final S3 filename (append today's date stamp)
+        const dateStamp = generateDateStamp();
+        const finalS3Filename = `${leadId}-${bankName}-${accountNumber}-${datePart}-${dateStamp}.pdf`;        
+
         const finalS3Url = `${S3_BASE_URL}${finalS3Filename}`;
 
         // Initialize group for this leadId if not already created.
