@@ -422,8 +422,17 @@
             <input
               type="radio"
               name="status"
-              value="Bank statements reviewed - submitted with claim"
+              value="Pending review"
               checked
+              class="form-radio"
+            />
+            <span class="ml-2">Pending review</span>
+          </label>
+          <label class="inline-flex items-center">
+            <input
+              type="radio"
+              name="status"
+              value="Bank statements reviewed - submitted with claim"
               class="form-radio"
             />
             <span class="ml-2">Reviewed &amp; submitted</span>
@@ -435,7 +444,7 @@
               value="Source case closed"
               class="form-radio"
             />
-            <span class="ml-2">Source case closed</span>
+            <span class="ml-2">Closed - Non Viable</span>
           </label>
         </div>
       </div>
@@ -448,8 +457,6 @@
         Upload data to FLG
       </button>
     </div>
-
-
 
     <!-- Container for progress log -->
     <div id="progressLog"></div>
