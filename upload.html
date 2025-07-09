@@ -123,11 +123,19 @@
       const listUrl = "https://web-production-15e92.up.railway.app/list-files?folderLink=" + encodeURIComponent(folderLink);
       try {
         const response = await fetch(listUrl, { credentials: "include" });
+
+        // if our session has expired / can't refresh, redirect to login
+        if (response.status === 401) {
+          alert("Session expired – please log in again.");
+          window.location.href = "/login?state=" + encodeURIComponent(window.location.href);
+          return;
+        }
         if (!response.ok) {
           const err = await response.json();
           logProgress("Error: " + JSON.stringify(err));
           throw new Error("File listing failed.");
         }
+
         const data = await response.json();
         if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
 
