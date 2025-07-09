@@ -319,7 +319,7 @@
       }
     }
 
-    // New function to upload data to FLG, with 60622‐specific PASS/FAIL + More-Info override
+
     async function uploadFLGData() {
       if (!window.aggregatedData || window.aggregatedData.length === 0) {
         alert("No aggregated data available for FLG update.");
@@ -328,24 +328,10 @@
 
       for (const item of window.aggregatedData) {
         try {
-          // Grab controls
-          const moreInfo    = document.getElementById("moreInfoCheckbox").checked;
-          const bankOutcome = document.querySelector('input[name="bankOutcome"]:checked').value; // "pass" or "fail"
-          const defaultStatus = document.querySelector('input[name="status"]:checked').value;
 
-          // Determine statusValue
-          let statusValue;
-          if (item.leadGroupId === "60622") {
-            if (moreInfo) {
-              statusValue = "Statements reviewed - missing outgoings";
-            } else {
-              statusValue = bankOutcome === "pass"
-                ? "Bank statements reviewed - submitted with claim"
-                : "Source case closed";
-            }
-          } else {
-            statusValue = defaultStatus;
-          }
+          // Only one status picker on upload.html—use it directly
+          const statusValue = document.querySelector('input[name="status"]:checked').value;
+
 
           // Build payload
           const body = {
@@ -409,7 +395,6 @@
       <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
     </div>
 
-
     <div class="flex flex-col gap-4 items-center">
       <button
         id="listFilesBtn"
@@ -430,24 +415,29 @@
       </button>
 
       <!-- ↓↓↓ Decision / Status chooser ↓↓↓ -->
-      <div class="mb-4">
+      <div class="mb-4 w-full max-w-md">
         <label class="block font-semibold mb-1">Decision / Status:</label>
-        <label>
-          <input type="radio" name="status" value="Pending review" checked>
-          Pending review
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="status"
-            value="Bank statements reviewed - submitted with claim"
-          >
-          Reviewed &amp; submitted
-        </label>
-        <label>
-          <input type="radio" name="status" value="Closed - Non Viable DSAR">
-          Closed - Non Viable
-        </label>
+        <div class="flex items-center space-x-4">
+          <label class="inline-flex items-center">
+            <input
+              type="radio"
+              name="status"
+              value="Bank statements reviewed - submitted with claim"
+              checked
+              class="form-radio"
+            />
+            <span class="ml-2">Reviewed &amp; submitted</span>
+          </label>
+          <label class="inline-flex items-center">
+            <input
+              type="radio"
+              name="status"
+              value="Source case closed"
+              class="form-radio"
+            />
+            <span class="ml-2">Source case closed</span>
+          </label>
+        </div>
       </div>
 
       <button
@@ -458,6 +448,7 @@
         Upload data to FLG
       </button>
     </div>
+
 
 
     <!-- Container for progress log -->
