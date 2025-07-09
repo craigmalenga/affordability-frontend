@@ -178,13 +178,16 @@
     function capturePDFwithJSPDFHTML() {
       debugLog("DEBUG: Starting improved PDF capture (just analysis & categorisations)");
       return new Promise((resolve, reject) => {
+        
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('p', 'pt', 'a4');
+        
         // 1. Locate the analysis section (assumed to be the parent container of .decision-box)
         const analysisSection = document.querySelector(".decision-box")?.parentElement;
         if (!analysisSection) {
           return reject(new Error("Analysis section not found."));
         }
+        
         // 2. Create a dedicated container for the PDF content
         const pdfContainer = document.createElement("div");
         pdfContainer.style.width = "800px"; // fixed width to control scaling
@@ -192,6 +195,7 @@
         pdfContainer.style.color = "#000";
         pdfContainer.style.backgroundColor = "#fff";
         pdfContainer.style.padding = "20px";
+        
         // 3. Append a style element to ensure all table cells are vertically centered
         const styleElem = document.createElement("style");
         styleElem.innerHTML = `
@@ -199,6 +203,7 @@
           td, th { vertical-align: middle !important; }
         `;
         pdfContainer.appendChild(styleElem);
+        
         // 4. Add the Belmond logo using a background image (alternative approach)
         const logoContainer = document.createElement("div");
         logoContainer.style.width = "150px";
@@ -209,24 +214,29 @@
         logoContainer.style.backgroundRepeat = "no-repeat";
         logoContainer.style.backgroundPosition = "center";
         pdfContainer.appendChild(logoContainer);
+        
         // 5. Create the heading with the text "Affordability Assessment - " then [Name] and Lead ID
         const fullName = document.getElementById("fullName").value.trim();
         const leadId = document.getElementById("leadId").value.trim();
         const heading = document.createElement("h2");
+
         heading.innerText = `Affordability Assessment - ${fullName ? fullName + " - " : ""}${leadId}`;
         heading.style.fontSize = "18pt";
         heading.style.fontWeight = "bold";
         heading.style.marginBottom = "16px";
         pdfContainer.appendChild(heading);
+        
         // 6. Clone the analysis section and remove any unwanted elements (e.g., finalSubmit button)
         const clonedSection = analysisSection.cloneNode(true);
         const processDecision = clonedSection.querySelector("#finalSubmitBtn")?.closest("div");
         if (processDecision) processDecision.remove();
         pdfContainer.appendChild(clonedSection);
+        
         // 7. Prevent generating a PDF if content is blank
         if (!pdfContainer.innerText.trim()) {
           return reject(new Error("PDF content is blank."));
         }
+        
         // 8. Render the container into the PDF using jsPDF.html
         pdf.html(pdfContainer, {
           callback: function (pdf) {
@@ -243,6 +253,7 @@
             scrollY: -window.scrollY
           }
         });
+
       });
     }
     /*************************************
@@ -1006,6 +1017,18 @@
         finalDecision = "Revisit - " + comment;
         finalReason = "";
       }
+
+      let statusValue;
+      if (selected === "review") {
+        statusValue = "Statements reviewed - missing outgoings";
+      } else {
+        // autoDecision will be "Affordable" or "Unaffordable"
+        statusValue = (autoDecision === "Affordable")
+          ? "Bank statements reviewed - submitted with claim"
+          : "Source case closed";
+      }
+
+
       const nBanks = statements.length;
       const nMonths = dynamicMonths.length;
       let totalIncome = 0, totalExpenses = 0, totalGambling = 0;
@@ -1055,7 +1078,8 @@
             "leadId": leadId,
             "data6": data6,
             "data7": data7,
-            "data9": screenshotUrl
+            "data9": screenshotUrl,
+            "status": statusValue   // ← ADD THIS LINE
           })
         });
       })
@@ -1082,6 +1106,9 @@
         debugLog("DEBUG: Error during final submission: " + err.message);
       });
     }
+
+
+    
     /*************************************
      * Session Check
      *************************************/
