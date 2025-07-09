@@ -183,6 +183,7 @@
     // <LeadID>-<Bank>-<Account>-<Date>-<random9digits>.pdf
     // data12: the Date (MmmYYYY) must be identical for all files of a LeadID;
     // data16: comma-separated <Bank>-<Account> pairs.
+      
     function aggregateFLGData(files) {
       const groups = {};  // valid files grouped by LeadID
       const failed = [];  // array of error messages
