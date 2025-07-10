@@ -330,8 +330,11 @@
         try {
 
           // Only one status picker on upload.html—use it directly
-          const statusValue = document.querySelector('input[name="status"]:checked').value;
-
+          let statusValue = document.querySelector('input[name="status"]:checked').value; 
+          // if the user clicked “Pending review” in the UI, send “Statements received”
+          if (statusValue === "Pending review") {
+            statusValue = "Statements received";
+          }
 
           // Build payload
           const body = {
