@@ -361,11 +361,9 @@
             data16:  item.data16
           };
 
-
-
-          // Send to FLG
+          // Send to FLG via the full /api/flg_update_new endpoint
           const response = await fetch(
-            "/upload-flg-fields",
+            "https://web-production-15e92.up.railway.app/api/flg_update_new",
             {
               method:      "POST",
               headers:     { "Content-Type": "application/json" },
