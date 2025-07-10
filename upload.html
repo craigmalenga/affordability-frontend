@@ -319,7 +319,6 @@
       }
     }
 
-
     async function uploadFLGData() {
       if (!window.aggregatedData || window.aggregatedData.length === 0) {
         alert("No aggregated data available for FLG update.");
@@ -328,45 +327,56 @@
 
       for (const item of window.aggregatedData) {
         try {
-
-          // ——— ① fetch existing FLG data & compare dates ———
+          // initialize with the new URLs, bank–account pairs, and date
           let urls = item.data8.split(",");
+          let data16 = item.data16.split(",");
           let dateToSend = item.data12;
+
+          // ——— fetch existing FLG data & prepend if matching ———
           try {
             const existingRes = await fetch(`/api/flg_data/${item.leadId}`, { credentials: "include" });
-
             if (existingRes.ok) {
               const existing = await existingRes.json();
-              // Extract the first month from monthsForTable, e.g. "Feb-2022" → "Feb2022"
+
+              // pull old URLs and bank–account pairs
+              const prevUrls = existing.statement_urls
+                ? existing.statement_urls.split(",")
+                : [];
+              const prevData16 = existing.bankNames
+                ? existing.bankNames.split(",")
+                : [];
+
+              // extract the first month from monthsForTable ("Feb-2022" → "Feb2022")
               const months = existing.monthsForTable || [];
               const existingDate = months.length
                 ? months[0].replace("-", "")
                 : null;
+
+              // compare periods
               if (existingDate !== item.data12) {
                 logProgress(
                   `The statements for LeadID ${item.leadId} cover different periods ` +
-                  `("${existingDate}" vs "${item.data12}") – please check source data. ` +
-                  `Data for this LeadID has not been uploaded.`
+                  `("${existingDate}" vs "${item.data12}") – please check source data.`
                 );
                 continue;
               }
-              // Merge URLs but keep the original item.data12 as the single date
-              const prevUrls = existing.statement_urls
-                ? existing.statement_urls.split(",")
-                : [];
-              urls = [...prevUrls, ...urls];
-            }
 
+              // merge old URLs and bank–accounts before the new ones
+              urls = [...prevUrls, ...urls];
+              data16 = [...prevData16, ...data16];
+
+              // if you want to record both dates: dateToSend = [existingDate, item.data12].join(",");
+            }
           } catch (e) {
             console.warn("Could not fetch existing FLG data:", e);
           }
 
-          // ——— ② build the merged payload ———
+          // ——— build the merged payload ———
           const body = {
-            leadId:  item.leadId,
-            data8:   urls.join(","),
-            data12:  dateToSend,
-            data16:  item.data16
+            leadId: item.leadId,
+            data8:  urls.join(","),
+            data12: dateToSend,
+            data16: data16.join(",")
           };
 
           // Send to FLG via the full /api/flg_update_new endpoint
