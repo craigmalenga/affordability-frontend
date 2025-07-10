@@ -332,7 +332,7 @@
           let data16     = item.data16.split(",");
           let dateToSend = item.data12;
 
-          // ——— fetch existing FLG data & prepend if matching ———
+          // ——— fetch existing FLG data & always prepend ———
           try {
             const existingRes = await fetch(
               "https://web-production-15e92.up.railway.app/api/flg_data/" + item.leadId,
@@ -342,34 +342,26 @@
             if (existingRes.ok) {
               const existing = await existingRes.json();
 
-              // pull old URLs and bank–account pairs
+              // split out whatever's already in FLG
               const prevUrls   = existing.statement_urls ? existing.statement_urls.split(",") : [];
               const prevData16 = existing.bankNames     ? existing.bankNames.split(",")       : [];
 
-              // extract the first month from monthsForTable ("Feb-2022" → "Feb2022")
+              // prepend old → new
+              urls   = [...prevUrls,   ...urls];
+              data16 = [...prevData16, ...data16];
+
+              // (optional) if you still want to capture both period stamps:
               const months       = existing.monthsForTable || [];
               const existingDate = months.length
                 ? months[0].replace("-", "")
-                : null;
-
-              // compare periods
-              if (existingDate === item.data12) {
-                // prepend old → new
-                urls       = [...prevUrls,    ...urls];
-                data16     = [...prevData16,  ...data16];
-                // now optionally record both dates:
-                dateToSend = [existingDate, item.data12].join(",");
-              } else {
-                logProgress(
-                  `The statements for LeadID ${item.leadId} cover different periods ` +
-                  `("${existingDate}" vs "${item.data12}") – please check source data.`
-                );
-                continue;
-              }
+                : item.data12;
+              dateToSend = [existingDate, item.data12].join(",");
             }
           } catch (e) {
             console.warn("Could not fetch existing FLG data:", e);
           }
+
+
 
           // ——— build the merged payload ———
           const body = {
