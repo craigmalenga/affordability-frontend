@@ -334,21 +334,29 @@
           let dateToSend = item.data12;
           try {
             const existingRes = await fetch(`/api/flg_data/${item.leadId}`, { credentials: "include" });
+
             if (existingRes.ok) {
               const existing = await existingRes.json();
-              // If the periods differ, show an error and skip this lead
-              if (existing.periodCovered !== item.data12) {
+              // Extract the first month from monthsForTable, e.g. "Feb-2022" → "Feb2022"
+              const months = existing.monthsForTable || [];
+              const existingDate = months.length
+                ? months[0].replace("-", "")
+                : null;
+              if (existingDate !== item.data12) {
                 logProgress(
-                  `The statements for LeadID ${item.leadId} cover different periods to those already on FLG ` +
-                  `- please check source data. The data to be added for this LeadID has not been uploaded.`
+                  `The statements for LeadID ${item.leadId} cover different periods ` +
+                  `("${existingDate}" vs "${item.data12}") – please check source data. ` +
+                  `Data for this LeadID has not been uploaded.`
                 );
                 continue;
               }
-              // Otherwise concatenate new URL onto the old list
-              const prevUrls = existing.statement_urls ? existing.statement_urls.split(",") : [];
+              // Merge URLs but keep the original item.data12 as the single date
+              const prevUrls = existing.statement_urls
+                ? existing.statement_urls.split(",")
+                : [];
               urls = [...prevUrls, ...urls];
-              dateToSend = existing.periodCovered;
             }
+
           } catch (e) {
             console.warn("Could not fetch existing FLG data:", e);
           }
