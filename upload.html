@@ -81,7 +81,7 @@
       text-align: center;
     }
 
-    /* Button container styles for indicators */
+    /* UPDATED: Button container styles for indicators */
     .button-container {
       display: flex;
       align-items: center;
@@ -94,21 +94,24 @@
       width: 250px; /* Fixed width for all three main buttons */
     }
 
+    /* UPDATED: Status indicator positioning - fully on white background */
     .status-indicator {
       position: absolute;
-      left: calc(100% + 1rem);
+      left: calc(100% + 2rem); /* Increased spacing from button edge */
       display: flex;
       align-items: center;
-      white-space: normal;
-      max-width: 300px;
+      white-space: nowrap;
+      max-width: 250px;
       text-align: left;
+      margin-left: 1rem; /* Additional margin to ensure it's on white background */
     }
 
+    /* UPDATED: Icon styles with better positioning */
     .tick-icon {
       color: #80A139;
       font-size: 2rem;
       font-weight: bold;
-      margin-right: 0.5rem;
+      margin-right: 0.75rem;
       flex-shrink: 0;
     }
 
@@ -116,22 +119,26 @@
       color: #dc2626;
       font-size: 2rem;
       font-weight: bold;
-      margin-right: 0.5rem;
+      margin-right: 0.75rem;
       flex-shrink: 0;
     }
 
+    /* UPDATED: Arrow points toward button, not text */
     .arrow-icon {
       color: #F18735;
       font-size: 2.5rem;
       font-weight: bold;
-      margin-right: 0.5rem;
+      margin-right: 0.75rem;
       flex-shrink: 0;
-      transform: translateX(-0.5rem); /* Move arrow closer to button */
+      transform: rotate(180deg); /* Arrow now points left toward button */
+      margin-left: -0.5rem; /* Move arrow closer to button */
     }
 
+    /* UPDATED: Text styling with better line breaks */
     .status-text {
       font-weight: bold;
-      line-height: 1.2;
+      line-height: 1.3;
+      font-size: 0.9rem;
     }
 
     .status-text.success {
@@ -144,6 +151,17 @@
 
     .status-text.next {
       color: #F18735;
+    }
+
+    /* UPDATED: Specific styling for multi-line text */
+    .status-text-line1 {
+      display: block;
+      margin-bottom: 0.1rem;
+    }
+
+    .status-text-line2 {
+      display: block;
+      font-size: 0.85rem;
     }
   </style>
   <script defer>
@@ -214,7 +232,7 @@
       document.getElementById("processingOverlay").style.display = "none";
     }
 
-    // Update status indicator for a button
+    // UPDATED: Update status indicator function with better text formatting
     function updateStatus(buttonId, status, text = '') {
       const container = document.querySelector(`#${buttonId}Container .status-indicator`);
       if (!container) return;
@@ -222,11 +240,50 @@
       container.innerHTML = '';
       
       if (status === 'success') {
-        container.innerHTML = `<span class="tick-icon">✓</span><span class="status-text success">${text}</span>`;
+        // Split text for better formatting: "X from Y files" on line 1, "uploaded successfully" on line 2
+        const parts = text.split(' ');
+        let line1 = '';
+        let line2 = '';
+        
+        if (text.includes('from') && text.includes('files')) {
+          const fromIndex = parts.findIndex(p => p === 'from');
+          const filesIndex = parts.findIndex(p => p === 'files');
+          if (fromIndex > -1 && filesIndex > -1) {
+            line1 = parts.slice(0, filesIndex + 1).join(' ');
+            line2 = parts.slice(filesIndex + 1).join(' ');
+          }
+        } else if (text.includes('from') && text.includes('leads')) {
+          const fromIndex = parts.findIndex(p => p === 'from');
+          const leadsIndex = parts.findIndex(p => p === 'leads');
+          if (fromIndex > -1 && leadsIndex > -1) {
+            line1 = parts.slice(0, leadsIndex + 1).join(' ');
+            line2 = parts.slice(leadsIndex + 1).join(' ');
+          }
+        } else {
+          line1 = text;
+        }
+        
+        container.innerHTML = `
+          <span class="tick-icon">✓</span>
+          <span class="status-text success">
+            <span class="status-text-line1">${line1}</span>
+            ${line2 ? `<span class="status-text-line2">${line2}</span>` : ''}
+          </span>
+        `;
       } else if (status === 'error') {
-        container.innerHTML = `<span class="cross-icon">✗</span><span class="status-text error">${text}</span>`;
+        container.innerHTML = `
+          <span class="cross-icon">✗</span>
+          <span class="status-text error">
+            <span class="status-text-line1">${text}</span>
+          </span>
+        `;
       } else if (status === 'next') {
-        container.innerHTML = `<span class="arrow-icon">➤</span><span class="status-text next">Next step</span>`;
+        container.innerHTML = `
+          <span class="arrow-icon">➤</span>
+          <span class="status-text next">
+            <span class="status-text-line1">Next step</span>
+          </span>
+        `;
       }
     }
 
