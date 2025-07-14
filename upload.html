@@ -81,28 +81,21 @@
       text-align: center;
     }
 
-    /* UPDATED: Button container styles for indicators */
-    .button-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      width: 100%;
-    }
-    
-    .button-container button {
-      width: 250px; /* Fixed width for all three main buttons */
-    }
-
-    /* UPDATED: Status indicator positioning - inside white area, to right of buttons */
-    .status-indicator {
-      position: absolute;
-      left: 270px; /* Fixed position just to the right of 250px wide buttons */
+    /* UPDATED: Two-column layout styling */
+    .status-display {
       display: flex;
       align-items: center;
       white-space: nowrap;
-      max-width: 200px;
       text-align: left;
+    }
+
+    /* Remove old button container and status indicator styles */
+    .button-container {
+      display: none; /* No longer needed */
+    }
+    
+    .status-indicator {
+      display: none; /* No longer needed */
     }
 
     /* UPDATED: Icon styles with better positioning */
@@ -231,9 +224,14 @@
       document.getElementById("processingOverlay").style.display = "none";
     }
 
-    // UPDATED: Update status indicator function with better text formatting
-    function updateStatus(buttonId, status, text = '') {
-      const container = document.querySelector(`#${buttonId}Container .status-indicator`);
+    // UPDATED: Update status function for new layout
+    function updateStatus(buttonType, status, text = '') {
+      let containerId;
+      if (buttonType === 'listFiles') containerId = 'listFilesStatus';
+      else if (buttonType === 's3Upload') containerId = 's3UploadStatus';
+      else if (buttonType === 'flgUpload') containerId = 'flgUploadStatus';
+      
+      const container = document.getElementById(containerId);
       if (!container) return;
 
       container.innerHTML = '';
@@ -651,42 +649,44 @@
       <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
     </div>
 
-    <div class="flex flex-col gap-4 items-center">
-      <div id="listFilesContainer" class="button-container">
+    <!-- Two-column layout: buttons on left, status indicators on right -->
+    <div class="grid grid-cols-2 gap-8 items-start">
+      <!-- Left column: Buttons -->
+      <div class="flex flex-col gap-4 items-center">
         <button
           id="listFilesBtn"
           onclick="handleListFiles()"
-          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
         >
           List Files (SharePoint)
         </button>
-        <div class="status-indicator"></div>
-      </div>
 
-      <div id="filesContainer" class="mt-2 w-full"></div>
-
-      <div id="s3UploadContainer" class="button-container">
         <button
           id="filesBtn"
           onclick="uploadFilesToS3()"
-          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
         >
           Upload Files to AWS S3
         </button>
-        <div class="status-indicator"></div>
-      </div>
 
-      <div id="flgUploadContainer" class="button-container">
         <button
           id="flgUpdateBtn"
           onclick="uploadFLGData()"
-          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
         >
           Upload data to FLG
         </button>
-        <div class="status-indicator"></div>
+      </div>
+
+      <!-- Right column: Status indicators -->
+      <div class="flex flex-col gap-4 items-start justify-start pt-2">
+        <div id="listFilesStatus" class="status-display min-h-[2.5rem] flex items-center"></div>
+        <div id="s3UploadStatus" class="status-display min-h-[2.5rem] flex items-center"></div>
+        <div id="flgUploadStatus" class="status-display min-h-[2.5rem] flex items-center"></div>
       </div>
     </div>
+
+    <div id="filesContainer" class="mt-6 w-full"></div>
 
     <!-- Container for progress log -->
     <div id="progressLog"></div>
