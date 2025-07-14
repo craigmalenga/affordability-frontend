@@ -649,40 +649,48 @@
       <input type="text" id="folderLink" placeholder="https://yoursharepointurl" class="border p-2 rounded-md w-full" />
     </div>
 
-    <!-- Two-column layout: buttons on left, status indicators on right -->
-    <div class="grid grid-cols-2 gap-8 items-start">
-      <!-- Left column: Buttons -->
-      <div class="flex flex-col gap-4 items-center">
-        <button
-          id="listFilesBtn"
-          onclick="handleListFiles()"
-          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
-        >
-          List Files (SharePoint)
-        </button>
-
-        <button
-          id="filesBtn"
-          onclick="uploadFilesToS3()"
-          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
-        >
-          Upload Files to AWS S3
-        </button>
-
-        <button
-          id="flgUpdateBtn"
-          onclick="uploadFLGData()"
-          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
-        >
-          Upload data to FLG
-        </button>
+    <!-- Three equal-height rows with buttons on left, status on right -->
+    <div class="flex flex-col gap-4">
+      <!-- Row 1: List Files -->
+      <div class="grid grid-cols-2 gap-8 items-center min-h-[3.5rem]">
+        <div class="flex justify-center">
+          <button
+            id="listFilesBtn"
+            onclick="handleListFiles()"
+            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
+          >
+            List Files (SharePoint)
+          </button>
+        </div>
+        <div id="listFilesStatus" class="status-display flex items-center"></div>
       </div>
 
-      <!-- Right column: Status indicators -->
-      <div class="flex flex-col gap-4 items-start justify-start pt-2">
-        <div id="listFilesStatus" class="status-display min-h-[2.5rem] flex items-center"></div>
-        <div id="s3UploadStatus" class="status-display min-h-[2.5rem] flex items-center"></div>
-        <div id="flgUploadStatus" class="status-display min-h-[2.5rem] flex items-center"></div>
+      <!-- Row 2: Upload to S3 -->
+      <div class="grid grid-cols-2 gap-8 items-center min-h-[3.5rem]">
+        <div class="flex justify-center">
+          <button
+            id="filesBtn"
+            onclick="uploadFilesToS3()"
+            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
+          >
+            Upload Files to AWS S3
+          </button>
+        </div>
+        <div id="s3UploadStatus" class="status-display flex items-center"></div>
+      </div>
+
+      <!-- Row 3: Upload to FLG -->
+      <div class="grid grid-cols-2 gap-8 items-center min-h-[3.5rem]">
+        <div class="flex justify-center">
+          <button
+            id="flgUpdateBtn"
+            onclick="uploadFLGData()"
+            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full max-w-xs"
+          >
+            Upload data to FLG
+          </button>
+        </div>
+        <div id="flgUploadStatus" class="status-display flex items-center"></div>
       </div>
     </div>
 
