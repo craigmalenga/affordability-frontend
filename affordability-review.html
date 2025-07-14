@@ -21,9 +21,24 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      background: url("https://github.com/craigmalenga/affordability-frontend/blob/main/Background.png?raw=true") no-repeat center center fixed;
+      /* Blue to pink gradient background - matching upload.html */
+      background: linear-gradient(to bottom right, #2E2F43 0%, #2E2F43 85%, #5D2C6D 100%);
       background-size: cover;
     }
+    
+    .brand-font {
+      font-family: "Brandon Grotesque", sans-serif;
+      font-weight: bold;
+    }
+    
+    .fixed-bottom-right-logo {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 100px;
+      height: auto;
+    }
+    
     #errorContainer, #bankWarningsDiv, #timerOverrideDiv {
       width: 100%;
     }
@@ -627,12 +642,12 @@
      *************************************/
 
     function checkAllOverrides() {
-      // if there is no bank‐warning box, we don’t require any checkbox there
+      // if there is no bank‐warning box, we don't require any checkbox there
       const warningBox = document.getElementById("bankWarningsDiv");
       const bankOverridesOk = !warningBox ||
         (overrides.length === statements.length && overrides.every(v => v));
 
-      // same for timer override: if no timer box, it’s auto‐OK
+      // same for timer override: if no timer box, it's auto‐OK
       const timerBox = document.getElementById("timerOverrideDiv");
       const timerOk = !timerBox || timerOverrideAcknowledged;
 
@@ -987,7 +1002,7 @@
     /*************************************
      * FINAL SUBMIT DECISION with Secure S3 Upload
      * - Uses capturePDFwithJSPDFHTML() for improved PDF capture.
-     * - Shows a “Processing...” overlay before starting.
+     * - Shows a "Processing..." overlay before starting.
      * - Hides the overlay after submission (or if an error occurs).
      *************************************/
     function finalSubmitDecision() {
@@ -1119,13 +1134,15 @@
           const loginBtn = document.getElementById("loginBtn");
           const fetchDataBtn = document.getElementById("fetchDataBtn");
           if (data.logged_in) {
-            loginBtn.innerText = "Logged in with Microsoft 365";
-            loginBtn.className = "bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700";
+            loginBtn.innerText = "Logged in";
+            loginBtn.classList.remove("bg-red-600");
+            loginBtn.classList.add("bg-green-600");
             fetchDataBtn.disabled = false;
             fetchDataBtn.style.backgroundColor = "blue";
           } else {
             loginBtn.innerText = "Log in with Microsoft 365";
-            loginBtn.className = "bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700";
+            loginBtn.classList.remove("bg-green-600");
+            loginBtn.classList.add("bg-red-600");
             fetchDataBtn.disabled = true;
             fetchDataBtn.style.backgroundColor = "red";
           }
@@ -1138,7 +1155,7 @@
     });
   </script>
 </head>
-<body class="bg-gray-100 p-6">
+<body>
   <!-- Centered Alert Modal -->
   <div id="alertOverlay"></div>
   <div id="alertBox">
@@ -1146,21 +1163,31 @@
     <button id="alertButton" onclick="closeAlert()">OK</button>
   </div>
   
-  <!-- Wrap all content in #pdfContent for full capture -->
-  <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg">
-    <!-- Top bar -->
-    <div class="flex justify-between items-center mb-4">
-      <button id="returnMenuBtn"
-              onclick="window.location.href='https://affordability-review-main-menu.up.railway.app/'"
-              class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
-        Return to Main Menu
-      </button>
-      <button id="loginBtn"
-              onclick="window.location.href='https://web-production-15e92.up.railway.app/login'"
-              class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
-        Log in with Microsoft 365
-      </button>
+  <!-- Top bar with unified login button - matching upload.html -->
+  <div class="w-full" style="background-color: #D12472;">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center">
+        <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="h-8 w-auto mr-4" />
+        <span class="text-white text-2xl brand-font">BELMOND</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="returnMenuBtn"
+                onclick="window.location.href='index.html'"
+                class="brand-font px-6 py-2 rounded-full hover:opacity-90"
+                style="background-color: white; color: #D12472; min-width: 180px;">
+          Return to main menu
+        </button>
+        <button id="loginBtn" 
+                onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)"
+                class="brand-font text-white px-6 py-2 rounded-full hover:opacity-90"
+                style="min-width: 180px;">
+        </button>
+      </div>
     </div>
+  </div>
+  
+  <!-- Wrap all content in #pdfContent for full capture -->
+  <div id="pdfContent" class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg mt-10 mb-10">
     <!-- Logo and Title -->
     <div class="text-center mb-4">
       <img src="https://github.com/craigmalenga/Image_belmond_Frontend/blob/main/Belmond%20logo.png?raw=true"
@@ -1211,6 +1238,9 @@
     <!-- Debug Output Area -->
     <div id="debugOutput"></div>
   </div>
+  
+  <!-- Fixed logo in bottom-right corner -->
+  <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="fixed-bottom-right-logo" />
 
   <!-- Processing Overlay (added outside #pdfContent) -->
   <div id="processingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; text-align:center;">
