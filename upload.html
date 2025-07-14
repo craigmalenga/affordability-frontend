@@ -54,26 +54,77 @@
       height: auto;
     }
 
-
-    /* 3–5) Full-screen overlay */
-    #loadingOverlay {
+    /* Processing overlay styles */
+    #processingOverlay {
       display: none;
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.4);
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
       z-index: 9999;
+      align-items: center;
+      justify-content: center;
     }
-    #loadingOverlayMessage {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      color: #fff;
+    
+    #processingMessage {
+      color: white;
       font-size: 1.5rem;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    /* Button container styles for indicators */
+    .button-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .status-indicator {
+      position: absolute;
+      left: 100%;
+      margin-left: 1rem;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .tick-icon {
+      color: #80A139;
+      font-size: 1.5rem;
+      margin-right: 0.5rem;
+    }
+
+    .cross-icon {
+      color: #dc2626;
+      font-size: 1.5rem;
+      margin-right: 0.5rem;
+    }
+
+    .arrow-icon {
+      color: #F18735;
+      font-size: 1.5rem;
+      margin-right: 0.5rem;
+    }
+
+    .status-text {
       font-weight: bold;
     }
 
+    .status-text.success {
+      color: #80A139;
+    }
 
+    .status-text.error {
+      color: #dc2626;
+    }
+
+    .status-text.next {
+      color: #F18735;
+    }
   </style>
   <script defer>
     // Check session status and update login button.
@@ -133,13 +184,31 @@
       checkSession();
     });
 
-    function showLoading() {
-      document.getElementById("loadingOverlay").style.display = "block";
-    }
-    function hideLoading() {
-      document.getElementById("loadingOverlay").style.display = "none";
+    // Show processing overlay
+    function showProcessing() {
+      document.getElementById("processingOverlay").style.display = "flex";
     }
 
+    // Hide processing overlay
+    function hideProcessing() {
+      document.getElementById("processingOverlay").style.display = "none";
+    }
+
+    // Update status indicator for a button
+    function updateStatus(buttonId, status, text = '') {
+      const container = document.querySelector(`#${buttonId}Container .status-indicator`);
+      if (!container) return;
+
+      container.innerHTML = '';
+      
+      if (status === 'success') {
+        container.innerHTML = `<span class="tick-icon">✓</span><span class="status-text success">${text}</span>`;
+      } else if (status === 'error') {
+        container.innerHTML = `<span class="cross-icon">✗</span><span class="status-text error">${text}</span>`;
+      } else if (status === 'next') {
+        container.innerHTML = `<span class="arrow-icon">→</span><span class="status-text next">Next step</span>`;
+      }
+    }
 
     // "List Files" button functionality
     async function handleListFiles() {
@@ -148,6 +217,12 @@
         alert("Please paste your SharePoint folder link.");
         return;
       }
+      
+      // Clear previous status indicators
+      updateStatus('listFiles', '');
+      updateStatus('s3Upload', '');
+      updateStatus('flgUpload', '');
+      
       logProgress("Listing files from: " + folderLink);
       const listUrl = "https://web-production-15e92.up.railway.app/list-files?folderLink=" + encodeURIComponent(folderLink);
       try {
@@ -162,11 +237,15 @@
         if (!response.ok) {
           const err = await response.json();
           logProgress("Error: " + JSON.stringify(err));
+          updateStatus('listFiles', 'error', 'Failed to list files');
           throw new Error("File listing failed.");
         }
 
         const data = await response.json();
-        if (!data.value || !Array.isArray(data.value)) throw new Error("No files returned.");
+        if (!data.value || !Array.isArray(data.value)) {
+          updateStatus('listFiles', 'error', 'No files found');
+          throw new Error("No files returned.");
+        }
 
         // Display raw file names
         renderFileList(data.value);
@@ -176,8 +255,14 @@
         const aggregated = aggregateFLGData(data.value);
         // Store aggregated data in a global variable for FLG update.
         window.aggregatedData = aggregated;
+        
+        // Show success tick and next step indicator
+        updateStatus('listFiles', 'success', '');
+        updateStatus('s3Upload', 'next');
+        
       } catch (error) {
         logProgress("Error listing files: " + error);
+        updateStatus('listFiles', 'error', 'Failed');
         alert("Error listing files. See progress log for details.");
       }
     }
@@ -207,12 +292,6 @@
     const S3_BASE_URL = "https://affordability-statememts.s3.eu-north-1.amazonaws.com/";
 
     // Process filenames and aggregate FLG data fields per unique Lead ID.
-    // Expected filename format: <LeadID>-<Bank>-<Account>-<Date>.pdf
-    // For S3 upload, we add a random 9-digit number:
-    // <LeadID>-<Bank>-<Account>-<Date>-<random9digits>.pdf
-    // data12: the Date (MmmYYYY) must be identical for all files of a LeadID;
-    // data16: comma-separated <Bank>-<Account> pairs.
-      
     function aggregateFLGData(files) {
       const groups = {};  // valid files grouped by LeadID
       const failed = [];  // array of error messages
@@ -239,7 +318,6 @@
           failed.push(`File "${originalFilename}" has invalid date part "${datePart}" (expected format MmmYYYY).`);
           return;
         }
-
 
         // Build final S3 filename (append today's date stamp)
         const dateStamp = generateDateStamp();
@@ -319,85 +397,26 @@
     }
 
     // Upload files to AWS S3.
-
     async function uploadFilesToS3() {
       const folderLink = document.getElementById("folderLink").value.trim();
       if (!folderLink) {
         alert("Please paste your SharePoint folder link.");
         return;
       }
-      
-      // Check if we have aggregated data with file mappings
+
       if (!window.aggregatedData || window.aggregatedData.length === 0) {
         alert("Please list files first before uploading to S3.");
         return;
       }
 
-      logProgress("Uploading files to AWS S3 from folder: " + folderLink);
+      // Clear previous status and show processing
+      updateStatus('s3Upload', '');
+      updateStatus('flgUpload', '');
+      showProcessing();
       
-      try {
-        // Collect all file mappings from aggregated data
-        const allFileMappings = window.aggregatedData.flatMap(g => g.fileMappings);
-        
-        if (allFileMappings.length === 0) {
-          alert("No file mappings found. Please list files first.");
-          return;
-        }
-
-        logProgress(`Uploading ${allFileMappings.length} files to S3...`);
-
-        const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3-lhs", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            folderLink: folderLink,
-            fileMappings: allFileMappings
-          })
-        });
-
-        // Check if response is ok before trying to parse JSON
-        if (!resp.ok) {
-          const errorText = await resp.text();
-          throw new Error(`HTTP error! status: ${resp.status}, message: ${errorText}`);
-        }
-        
-        const result = await resp.json();
-        
-        logProgress("S3 upload completed successfully!");
-        logProgress(`Uploaded files: ${JSON.stringify(result.uploaded_files, null, 2)}`);
-        
-        // Show success message
-        if (result.uploaded_files && result.uploaded_files.length > 0) {
-          logProgress(`Successfully uploaded ${result.uploaded_files.length} files to S3.`);
-        } else {
-          logProgress("Warning: No files were uploaded to S3.");
-        }
-        
-      } catch (err) {
-        logProgress("Error uploading files to AWS S3: " + err.toString());
-        console.error("S3 upload error details:", err);
-        alert("Error uploading files to S3. See progress log for details.");
-      }
-    }
-
-
-
-
-    async function uploadFilesToS3() {
-      const folderLink = document.getElementById("folderLink").value.trim();
-      if (!folderLink) {
-        alert("Please paste your SharePoint folder link.");
-        return;
-      }
       logProgress("Uploading files to AWS S3 from folder: " + folderLink);
       try {
-
         const resp = await fetch("https://web-production-15e92.up.railway.app/upload-to-s3-lhs", {
-
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -408,10 +427,30 @@
         });
         
         const result = await resp.json();
-        if (!resp.ok) throw new Error(result.error || "S3 upload failed.");
+        hideProcessing();
+        
+        if (!resp.ok) {
+          updateStatus('s3Upload', 'error', result.error || "Upload failed");
+          throw new Error(result.error || "S3 upload failed.");
+        }
+        
         logProgress("S3 upload result: " + JSON.stringify(result, null, 2));
+        
+        // Calculate success/failure counts
+        const totalFiles = window.aggregatedData.flatMap(g => g.fileMappings).length;
+        const successCount = result.successful || 0;
+        
+        if (successCount > 0) {
+          updateStatus('s3Upload', 'success', `${successCount} from ${totalFiles} files uploaded successfully`);
+          updateStatus('flgUpload', 'next');
+        } else {
+          updateStatus('s3Upload', 'error', 'No files uploaded');
+        }
+        
       } catch (err) {
+        hideProcessing();
         logProgress("Error uploading files to AWS S3: " + err);
+        updateStatus('s3Upload', 'error', 'Upload failed');
         alert("Error uploading files. See progress log for details.");
       }
     }
@@ -421,6 +460,10 @@
         alert("No aggregated data available for FLG update.");
         return;
       }
+
+      // Clear previous status and show processing
+      updateStatus('flgUpload', '');
+      showProcessing();
 
       let successCount = 0;
       let failCount = 0;
@@ -470,6 +513,16 @@
         }
       }
 
+      hideProcessing();
+
+      // Update status based on results
+      const totalLeads = window.aggregatedData.length;
+      if (successCount > 0) {
+        updateStatus('flgUpload', 'success', `${successCount} from ${totalLeads} leads updated successfully`);
+      } else {
+        updateStatus('flgUpload', 'error', 'All updates failed');
+      }
+
       // Summary message
       if (failCount > 0) {
         logProgress(`\nSummary: ${successCount} successful, ${failCount} failed`);
@@ -481,15 +534,13 @@
       }
     }
 
-    
-
   </script>
-
-
 </head>
 <body>
-
-
+  <!-- Processing Overlay -->
+  <div id="processingOverlay">
+    <div id="processingMessage">Please wait.... processing....</div>
+  </div>
 
   <!-- Top bar with unified login button -->
   <div class="w-full" style="background-color: #D12472;">
@@ -515,31 +566,40 @@
     </div>
 
     <div class="flex flex-col gap-4 items-center">
-      <button
-        id="listFilesBtn"
-        onclick="handleListFiles()"
-        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-      >
-        List Files (SharePoint)
-      </button>
+      <div id="listFilesContainer" class="button-container">
+        <button
+          id="listFilesBtn"
+          onclick="handleListFiles()"
+          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+        >
+          List Files (SharePoint)
+        </button>
+        <div class="status-indicator"></div>
+      </div>
 
       <div id="filesContainer" class="mt-2 w-full"></div>
 
-      <button
-        id="filesBtn"
-        onclick="uploadFilesToS3()"
-        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-      >
-        Upload Files to AWS S3
-      </button>
+      <div id="s3UploadContainer" class="button-container">
+        <button
+          id="filesBtn"
+          onclick="uploadFilesToS3()"
+          class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+        >
+          Upload Files to AWS S3
+        </button>
+        <div class="status-indicator"></div>
+      </div>
 
-      <button
-        id="flgUpdateBtn"
-        onclick="uploadFLGData()"
-        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-      >
-        Upload data to FLG
-      </button>
+      <div id="flgUploadContainer" class="button-container">
+        <button
+          id="flgUpdateBtn"
+          onclick="uploadFLGData()"
+          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+        >
+          Upload data to FLG
+        </button>
+        <div class="status-indicator"></div>
+      </div>
     </div>
 
     <!-- Container for progress log -->
