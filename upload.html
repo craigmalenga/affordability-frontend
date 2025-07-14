@@ -16,6 +16,12 @@
       background: linear-gradient(to bottom right, #2E2F43 0%, #2E2F43 85%, #5D2C6D 100%);
       background-size: cover;
     }
+    
+    .brand-font {
+      font-family: "Brandon Grotesque", sans-serif;
+      font-weight: bold;
+    }
+    
     #progressLog, #failedLeads {
       white-space: pre-line;
       padding: 1rem;
@@ -81,37 +87,51 @@
       align-items: center;
       justify-content: center;
       position: relative;
+      width: 100%;
+    }
+    
+    .button-container button {
+      width: 250px; /* Fixed width for all three main buttons */
     }
 
     .status-indicator {
       position: absolute;
-      left: 100%;
-      margin-left: 1rem;
+      left: calc(100% + 1rem);
       display: flex;
       align-items: center;
-      white-space: nowrap;
+      white-space: normal;
+      max-width: 300px;
+      text-align: left;
     }
 
     .tick-icon {
       color: #80A139;
-      font-size: 1.5rem;
+      font-size: 2rem;
+      font-weight: bold;
       margin-right: 0.5rem;
+      flex-shrink: 0;
     }
 
     .cross-icon {
       color: #dc2626;
-      font-size: 1.5rem;
+      font-size: 2rem;
+      font-weight: bold;
       margin-right: 0.5rem;
+      flex-shrink: 0;
     }
 
     .arrow-icon {
       color: #F18735;
-      font-size: 1.5rem;
+      font-size: 2.5rem;
+      font-weight: bold;
       margin-right: 0.5rem;
+      flex-shrink: 0;
+      transform: translateX(-0.5rem); /* Move arrow closer to button */
     }
 
     .status-text {
       font-weight: bold;
+      line-height: 1.2;
     }
 
     .status-text.success {
@@ -206,7 +226,7 @@
       } else if (status === 'error') {
         container.innerHTML = `<span class="cross-icon">✗</span><span class="status-text error">${text}</span>`;
       } else if (status === 'next') {
-        container.innerHTML = `<span class="arrow-icon">→</span><span class="status-text next">Next step</span>`;
+        container.innerHTML = `<span class="arrow-icon">➤</span><span class="status-text next">Next step</span>`;
       }
     }
 
@@ -547,11 +567,21 @@
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center">
         <img src="https://raw.githubusercontent.com/craigmalenga/affordability-frontend/main/O%20logo.png" alt="O-logo" class="h-8 w-auto mr-4" />
-        <span class="text-white text-2xl font-bold">BELMOND</span>
+        <span class="text-white text-2xl brand-font">BELMOND</span>
       </div>
-      <button id="loginBtn" onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)"
-              class="text-white px-4 py-2 rounded-md hover:opacity-90">
-      </button>
+      <div class="flex items-center gap-2">
+        <button id="returnMenuBtn"
+                onclick="window.location.href='index.html'"
+                class="brand-font px-6 py-2 rounded-full hover:opacity-90"
+                style="background-color: white; color: #D12472; min-width: 180px;">
+          Return to main menu
+        </button>
+        <button id="loginBtn" 
+                onclick="window.location.href='https://web-production-15e92.up.railway.app/login?state=' + encodeURIComponent(window.location.href)"
+                class="brand-font text-white px-6 py-2 rounded-full hover:opacity-90"
+                style="min-width: 180px;">
+        </button>
+      </div>
     </div>
   </div>
   <div class="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-lg text-center mt-10 mb-10">
@@ -583,7 +613,7 @@
         <button
           id="filesBtn"
           onclick="uploadFilesToS3()"
-          class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+          class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
         >
           Upload Files to AWS S3
         </button>
